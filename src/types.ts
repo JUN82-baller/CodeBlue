@@ -89,6 +89,29 @@ export interface SystemStats {
 export type MedicationRoute = 'Oral' | 'IV' | 'IM' | 'Subcutaneous' | 'Inhalation' | 'Infusion' | 'Topical';
 export type MedicationStatus = 'Scheduled' | 'Administered' | 'Missed' | 'Held' | 'Cancelled';
 
+export interface MedicationAdministrationRecord {
+  id: string;
+  medicationScheduleId: string;
+  medicationName: string;
+  dosage: string;
+  route: MedicationRoute;
+  patientId: string;
+  patientName: string;
+  roomNumber: string;
+  bed: string;
+  administeredAt: string; // ISO timestamp
+  administeredBy: string; // Staff name (e.g. "ĐD. Đặng Thị Hồng Hạnh")
+  administeredStaffId?: string;
+  administeredRole?: string; // e.g. "Điều Dưỡng Trưởng Trạm", "Bác Sĩ Trực Ca"
+  administerNotes?: string;
+  recordedHeartRate?: number;
+  recordedBloodPressure?: string;
+  recordedSpO2?: number;
+  recordedTemperature?: number;
+  prescribedByDoctorName?: string;
+  vitalsEvaluation?: 'Normal' | 'Warning' | 'Critical';
+}
+
 export interface MedicationSchedule {
   id: string;
   patientId: string;
@@ -114,6 +137,8 @@ export interface MedicationSchedule {
   preVitalsRequired?: boolean; // Yêu cầu đo mạch/HA trước khi dùng
   recordedHeartRate?: number;
   recordedBloodPressure?: string;
+  recordedSpO2?: number;
+  recordedTemperature?: number;
   googleCalendarEventId?: string;
   googleCalendarSyncedAt?: string;
   googleCalendarHtmlLink?: string;
@@ -150,7 +175,7 @@ export type WsClientMessage =
 
 export type WsServerMessage =
   | { type: 'CONNECTED'; clientId: string; serverTime: string }
-  | { type: 'INIT_STATE'; alerts: Alert[]; patients: Patient[]; doctors: Doctor[]; settings: SystemSettings; stats: SystemStats; medications?: MedicationSchedule[] }
+  | { type: 'INIT_STATE'; alerts: Alert[]; patients: Patient[]; doctors: Doctor[]; settings: SystemSettings; stats: SystemStats; medications?: MedicationSchedule[]; medicationHistory?: MedicationAdministrationRecord[] }
   | { type: 'NEW_ALERT'; alert: Alert }
   | { type: 'ALERT_ACKNOWLEDGED'; alert: Alert; acknowledgedBy: string }
   | { type: 'ALERT_RESOLVED'; alert: Alert; resolvedBy: string }
@@ -160,5 +185,6 @@ export type WsServerMessage =
   | { type: 'DOCTORS_UPDATED'; doctors: Doctor[] }
   | { type: 'PATIENTS_UPDATED'; patients: Patient[] }
   | { type: 'MEDICATIONS_UPDATED'; medications: MedicationSchedule[] }
-  | { type: 'MEDICATION_ADMINISTERED'; medication: MedicationSchedule }
-  | { type: 'DATA_RESET'; alerts: Alert[]; patients: Patient[]; doctors: Doctor[]; medications?: MedicationSchedule[] };
+  | { type: 'MEDICATION_ADMINISTERED'; medication: MedicationSchedule; logRecord?: MedicationAdministrationRecord }
+  | { type: 'MEDICATION_HISTORY_UPDATED'; history: MedicationAdministrationRecord[] }
+  | { type: 'DATA_RESET'; alerts: Alert[]; patients: Patient[]; doctors: Doctor[]; medications?: MedicationSchedule[]; medicationHistory?: MedicationAdministrationRecord[] };

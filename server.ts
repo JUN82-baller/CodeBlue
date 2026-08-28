@@ -8,6 +8,7 @@ import {
   Alert,
   Doctor,
   GroundingSource,
+  MedicationAdministrationRecord,
   MedicationSchedule,
   Patient,
   SystemSettings,
@@ -243,6 +244,150 @@ const initialMedications: MedicationSchedule[] = [
 
 let medications: MedicationSchedule[] = [...initialMedications];
 
+const createSeedDate = (hoursAgo: number, minutesAgo: number = 0) => {
+  const d = new Date();
+  d.setHours(d.getHours() - hoursAgo);
+  d.setMinutes(d.getMinutes() - minutesAgo);
+  return d.toISOString();
+};
+
+const initialMedicationAdministrationLogs: MedicationAdministrationRecord[] = [
+  {
+    id: 'MAR-LOG-01',
+    medicationScheduleId: 'MED-101',
+    medicationName: 'Digoxin 0.25mg',
+    dosage: '1 viên (0.25mg)',
+    route: 'Oral',
+    patientId: 'P101',
+    patientName: 'Nguyễn Văn Hùng',
+    roomNumber: 'P.101',
+    bed: 'G01',
+    administeredAt: createSeedDate(3, 10),
+    administeredBy: 'ĐD. Đặng Thị Hồng Hạnh',
+    administeredStaffId: 'NUR01',
+    administeredRole: 'Điều Dưỡng Trưởng Trạm',
+    administerNotes: 'Đã kiểm tra 5 đúng. Nhịp tim và huyết áp đều ổn định trước khi cho uống thuốc.',
+    recordedHeartRate: 74,
+    recordedBloodPressure: '125/80',
+    recordedSpO2: 97,
+    recordedTemperature: 36.8,
+    prescribedByDoctorName: 'BS. CKII. Nguyễn Quốc Trí',
+    vitalsEvaluation: 'Normal',
+  },
+  {
+    id: 'MAR-LOG-02',
+    medicationScheduleId: 'MED-102',
+    medicationName: 'Furosemide 20mg/2ml',
+    dosage: '1 ống (20mg)',
+    route: 'IV',
+    patientId: 'P101',
+    patientName: 'Nguyễn Văn Hùng',
+    roomNumber: 'P.101',
+    bed: 'G01',
+    administeredAt: createSeedDate(5, 30),
+    administeredBy: 'ĐD. Đặng Thị Hồng Hạnh',
+    administeredStaffId: 'NUR01',
+    administeredRole: 'Điều Dưỡng Trưởng Trạm',
+    administerNotes: 'Tiêm tĩnh mạch chậm 2 phút. Bệnh nhân êm, không chóng mặt hay buồn nôn.',
+    recordedHeartRate: 82,
+    recordedBloodPressure: '135/85',
+    recordedSpO2: 96,
+    recordedTemperature: 37.0,
+    prescribedByDoctorName: 'BS. CKII. Nguyễn Quốc Trí',
+    vitalsEvaluation: 'Normal',
+  },
+  {
+    id: 'MAR-LOG-03',
+    medicationScheduleId: 'MED-103',
+    medicationName: 'Ceftriaxone 1g',
+    dosage: '1 lọ (1g)',
+    route: 'Infusion',
+    patientId: 'P102',
+    patientName: 'Trần Thị Mai',
+    roomNumber: 'P.102',
+    bed: 'G02',
+    administeredAt: createSeedDate(2, 15),
+    administeredBy: 'ThS. BS. Phạm Thu Trang',
+    administeredStaffId: 'DOC02',
+    administeredRole: 'Bác Sĩ Tim Mạch Can Thiệp',
+    administerNotes: 'Pha 100ml Natri Clorid 0.9% truyền tĩnh mạch 30 phút, không phản ứng dị ứng thuốc.',
+    recordedHeartRate: 68,
+    recordedBloodPressure: '118/76',
+    recordedSpO2: 98,
+    recordedTemperature: 36.6,
+    prescribedByDoctorName: 'ThS. BS. Phạm Thu Trang',
+    vitalsEvaluation: 'Normal',
+  },
+  {
+    id: 'MAR-LOG-04',
+    medicationScheduleId: 'MED-104',
+    medicationName: 'Amiodarone 150mg/3ml',
+    dosage: '1 ống (150mg)',
+    route: 'Infusion',
+    patientId: 'P201',
+    patientName: 'Lê Hoàng Nam',
+    roomNumber: 'P.201',
+    bed: 'G01',
+    administeredAt: createSeedDate(1, 45),
+    administeredBy: 'BS. CKII. Nguyễn Quốc Trí',
+    administeredStaffId: 'DOC01',
+    administeredRole: 'Trưởng Ca Trực ICU',
+    administerNotes: 'Pha bơm tiêm điện duy trì tốc độ chuẩn, theo dõi monitor liên tục, nhịp xoang đã phục hồi.',
+    recordedHeartRate: 108,
+    recordedBloodPressure: '115/72',
+    recordedSpO2: 95,
+    recordedTemperature: 36.9,
+    prescribedByDoctorName: 'BS. CKII. Nguyễn Quốc Trí',
+    vitalsEvaluation: 'Warning',
+  },
+  {
+    id: 'MAR-LOG-05',
+    medicationScheduleId: 'MED-105',
+    medicationName: 'Enoxaparin 4000 IU (40mg/0.4ml)',
+    dosage: '1 bơm tiêm sẵn',
+    route: 'Subcutaneous',
+    patientId: 'P203',
+    patientName: 'Phạm Minh Tuấn',
+    roomNumber: 'P.203',
+    bed: 'G03',
+    administeredAt: createSeedDate(4, 20),
+    administeredBy: 'ĐD. Đặng Thị Hồng Hạnh',
+    administeredStaffId: 'NUR01',
+    administeredRole: 'Điều Dưỡng Trưởng Trạm',
+    administerNotes: 'Tiêm dưới da thành bụng trước bên trái, không xoa bóp, không có dấu hiệu bầm máu.',
+    recordedHeartRate: 76,
+    recordedBloodPressure: '122/78',
+    recordedSpO2: 98,
+    recordedTemperature: 36.7,
+    prescribedByDoctorName: 'ThS. BS. Phạm Thu Trang',
+    vitalsEvaluation: 'Normal',
+  },
+  {
+    id: 'MAR-LOG-06',
+    medicationScheduleId: 'MED-106',
+    medicationName: 'Paracetamol 500mg',
+    dosage: '1 viên (500mg)',
+    route: 'Oral',
+    patientId: 'P308',
+    patientName: 'Vũ Quốc Bảo',
+    roomNumber: 'P.308',
+    bed: 'G01',
+    administeredAt: createSeedDate(0, 40),
+    administeredBy: 'BS. CKI. Lê Hải Đăng',
+    administeredStaffId: 'DOC03',
+    administeredRole: 'Bác Sĩ Dự Phòng Cấp Cứu',
+    administerNotes: 'Bệnh nhân sốt nhẹ 37.8°C và đau vết mổ sau can thiệp, đã cho uống thuốc với nước ấm.',
+    recordedHeartRate: 86,
+    recordedBloodPressure: '120/80',
+    recordedSpO2: 99,
+    recordedTemperature: 37.8,
+    prescribedByDoctorName: 'BS. CKI. Lê Hải Đăng',
+    vitalsEvaluation: 'Normal',
+  },
+];
+
+let medicationAdministrationLogs: MedicationAdministrationRecord[] = [...initialMedicationAdministrationLogs];
+
 let systemSettings: SystemSettings = {
   minNormalHeartRate: 50,
   maxNormalHeartRate: 120,
@@ -250,13 +395,6 @@ let systemSettings: SystemSettings = {
   criticalHighHeartRate: 150,
   minSpO2: 88,
   escalationTimeoutSeconds: 15,
-};
-
-const createSeedDate = (hoursAgo: number, minutesAgo: number = 0) => {
-  const d = new Date();
-  d.setHours(d.getHours() - hoursAgo);
-  d.setMinutes(d.getMinutes() - minutesAgo);
-  return d.toISOString();
 };
 
 const initialSeedAlerts: Alert[] = [
@@ -987,7 +1125,16 @@ app.put('/api/medications/:id', (req, res) => {
 // Administer Medication (Cho bệnh nhân dùng thuốc & ký nhận)
 app.post('/api/medications/:id/administer', (req, res) => {
   const { id } = req.params;
-  const { administeredBy, administeredRole, administerNotes, recordedHeartRate, recordedBloodPressure } = req.body;
+  const {
+    administeredBy,
+    administeredRole,
+    administeredStaffId,
+    administerNotes,
+    recordedHeartRate,
+    recordedBloodPressure,
+    recordedSpO2,
+    recordedTemperature,
+  } = req.body;
 
   const med = medications.find((m) => m.id === id);
   if (!med) {
@@ -995,19 +1142,99 @@ app.post('/api/medications/:id/administer', (req, res) => {
     return;
   }
 
+  const adminTime = new Date().toISOString();
   med.status = 'Administered';
-  med.administeredAt = new Date().toISOString();
+  med.administeredAt = adminTime;
   med.administeredBy = administeredBy || 'ĐD. Đặng Thị Hồng Hạnh';
   med.administeredRole = administeredRole || 'Điều Dưỡng Trực Ca';
   med.administerNotes = administerNotes || 'Đã cho bệnh nhân dùng đúng liều, tình trạng ổn định.';
   if (recordedHeartRate) med.recordedHeartRate = Number(recordedHeartRate);
   if (recordedBloodPressure) med.recordedBloodPressure = recordedBloodPressure;
+  if (recordedSpO2) med.recordedSpO2 = Number(recordedSpO2);
+  if (recordedTemperature) med.recordedTemperature = Number(recordedTemperature);
 
-  broadcast({ type: 'MEDICATION_ADMINISTERED', medication: { ...med } });
+  // Evaluate vitals
+  let vitalsEvaluation: 'Normal' | 'Warning' | 'Critical' = 'Normal';
+  const hr = Number(recordedHeartRate);
+  const spo2 = Number(recordedSpO2);
+  if ((hr && (hr < 50 || hr > 130)) || (spo2 && spo2 < 90)) {
+    vitalsEvaluation = 'Critical';
+  } else if ((hr && (hr < 60 || hr > 105)) || (spo2 && spo2 < 95)) {
+    vitalsEvaluation = 'Warning';
+  }
+
+  // Create audit administration record
+  const logRecord: MedicationAdministrationRecord = {
+    id: `MAR-LOG-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+    medicationScheduleId: med.id,
+    medicationName: med.medicationName,
+    dosage: med.dosage,
+    route: med.route,
+    patientId: med.patientId,
+    patientName: med.patientName,
+    roomNumber: med.roomNumber,
+    bed: med.bed,
+    administeredAt: adminTime,
+    administeredBy: med.administeredBy,
+    administeredStaffId: administeredStaffId || med.assignedNurseId,
+    administeredRole: med.administeredRole,
+    administerNotes: med.administerNotes,
+    recordedHeartRate: med.recordedHeartRate,
+    recordedBloodPressure: med.recordedBloodPressure,
+    recordedSpO2: med.recordedSpO2,
+    recordedTemperature: med.recordedTemperature,
+    prescribedByDoctorName: med.prescribedByDoctorName,
+    vitalsEvaluation,
+  };
+
+  medicationAdministrationLogs.unshift(logRecord);
+  if (medicationAdministrationLogs.length > 500) {
+    medicationAdministrationLogs = medicationAdministrationLogs.slice(0, 500);
+  }
+
+  broadcast({ type: 'MEDICATION_ADMINISTERED', medication: { ...med }, logRecord });
   broadcast({ type: 'MEDICATIONS_UPDATED', medications: [...medications] });
+  broadcast({ type: 'MEDICATION_HISTORY_UPDATED', history: [...medicationAdministrationLogs] });
   broadcast({ type: 'STATS_UPDATED', stats: calculateStats() });
 
-  res.json({ success: true, medication: med });
+  res.json({ success: true, medication: med, logRecord });
+});
+
+// Query Medication Administration History Logs
+app.get('/api/medications-history', (req, res) => {
+  const { patientId, medicationName, staffName, search, limit } = req.query;
+  let filtered = [...medicationAdministrationLogs];
+
+  if (patientId) {
+    filtered = filtered.filter((l) => l.patientId === patientId);
+  }
+  if (medicationName) {
+    filtered = filtered.filter((l) =>
+      l.medicationName.toLowerCase().includes((medicationName as string).toLowerCase())
+    );
+  }
+  if (staffName) {
+    filtered = filtered.filter((l) =>
+      l.administeredBy.toLowerCase().includes((staffName as string).toLowerCase())
+    );
+  }
+  if (search) {
+    const q = (search as string).toLowerCase();
+    filtered = filtered.filter(
+      (l) =>
+        l.medicationName.toLowerCase().includes(q) ||
+        l.patientName.toLowerCase().includes(q) ||
+        l.roomNumber.toLowerCase().includes(q) ||
+        l.administeredBy.toLowerCase().includes(q) ||
+        (l.administerNotes && l.administerNotes.toLowerCase().includes(q))
+    );
+  }
+
+  // Sort descending by administeredAt
+  filtered.sort((a, b) => new Date(b.administeredAt).getTime() - new Date(a.administeredAt).getTime());
+
+  const maxLimit = limit ? parseInt(limit as string, 10) : 100;
+  res.json(filtered.slice(0, maxLimit));
 });
 
 // Hold / Delay Medication (Tạm hoãn do tình trạng lâm sàng)
@@ -1210,12 +1437,14 @@ app.post('/api/reset-data', (req, res) => {
   vitalReadings = [];
   patients = [...initialPatients];
   medications = [...initialMedications];
+  medicationAdministrationLogs = [...initialMedicationAdministrationLogs];
   broadcast({
     type: 'INIT_STATE',
     alerts: [],
     patients: [...patients],
     doctors: [...doctors],
     medications: [...medications],
+    medicationHistory: [...medicationAdministrationLogs],
     settings: systemSettings,
     stats: calculateStats(),
   });
@@ -1252,6 +1481,7 @@ async function startServer() {
       patients: [...patients],
       doctors: [...doctors],
       medications: [...medications],
+      medicationHistory: [...medicationAdministrationLogs],
       settings: systemSettings,
       stats: calculateStats(),
     };

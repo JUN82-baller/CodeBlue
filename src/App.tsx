@@ -15,6 +15,7 @@ import {
   AiConsultationRole,
   Alert,
   Doctor,
+  MedicationAdministrationRecord,
   MedicationSchedule,
   Patient,
   SystemSettings,
@@ -70,6 +71,7 @@ export default function App() {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [medications, setMedications] = useState<MedicationSchedule[]>([]);
+  const [medicationHistory, setMedicationHistory] = useState<MedicationAdministrationRecord[]>([]);
   const [settings, setSettings] = useState<SystemSettings>(defaultSettings);
   const [stats, setStats] = useState<SystemStats | null>(null);
 
@@ -145,6 +147,7 @@ export default function App() {
           setPatients(msg.patients || []);
           setDoctors(msg.doctors || []);
           if (msg.medications) setMedications(msg.medications);
+          if (msg.medicationHistory) setMedicationHistory(msg.medicationHistory);
           if (msg.settings) setSettings(msg.settings);
           if (msg.stats) setStats(msg.stats);
           break;
@@ -157,9 +160,16 @@ export default function App() {
           setMedications((prev) =>
             prev.map((m) => (m.id === msg.medication.id ? msg.medication : m))
           );
+          if (msg.logRecord) {
+            setMedicationHistory((prev) => [msg.logRecord!, ...prev.filter((l) => l.id !== msg.logRecord!.id)]);
+          }
           if (soundEnabled) {
             playAcknowledgeChime();
           }
+          break;
+
+        case 'MEDICATION_HISTORY_UPDATED':
+          setMedicationHistory(msg.history || []);
           break;
 
         case 'NEW_ALERT':
@@ -239,6 +249,7 @@ export default function App() {
           setPatients(msg.patients);
           setDoctors(msg.doctors);
           if (msg.medications) setMedications(msg.medications);
+          if (msg.medicationHistory) setMedicationHistory(msg.medicationHistory);
           setRecentVitals({});
           setRecentReadingsList([]);
           stopNurseStationSiren();
@@ -255,12 +266,13 @@ export default function App() {
   // Initial Fetch fallback
   const fetchInitialData = useCallback(async () => {
     try {
-      const [resPatients, resDocs, resAlerts, resSettings, resMeds] = await Promise.all([
+      const [resPatients, resDocs, resAlerts, resSettings, resMeds, resMedHistory] = await Promise.all([
         fetch('/api/patients'),
         fetch('/api/doctors'),
         fetch('/api/alerts'),
         fetch('/api/settings'),
         fetch('/api/medications'),
+        fetch('/api/medications-history'),
       ]);
       if (resPatients.ok) setPatients(await resPatients.json());
       if (resDocs.ok) {
@@ -273,6 +285,7 @@ export default function App() {
       if (resAlerts.ok) setAlerts(await resAlerts.json());
       if (resSettings.ok) setSettings(await resSettings.json());
       if (resMeds.ok) setMedications(await resMeds.json());
+      if (resMedHistory && resMedHistory.ok) setMedicationHistory(await resMedHistory.json());
     } catch (err) {
       console.error('Initial data fetch error:', err);
     }
@@ -288,9 +301,12 @@ export default function App() {
     data: {
       administeredBy: string;
       administeredRole: string;
+      administeredStaffId?: string;
       administerNotes?: string;
       recordedHeartRate?: number;
       recordedBloodPressure?: string;
+      recordedSpO2?: number;
+      recordedTemperature?: number;
     }
   ) => {
     try {
@@ -304,6 +320,9 @@ export default function App() {
         setMedications((prev) =>
           prev.map((m) => (m.id === id ? updated.medication : m))
         );
+        if (updated.logRecord) {
+          setMedicationHistory((prev) => [updated.logRecord, ...prev.filter((l) => l.id !== updated.logRecord.id)]);
+        }
       }
     } catch (e) {
       console.error('Failed to administer medication', e);
@@ -570,6 +589,7 @@ export default function App() {
         {activeTab === 'medication' && (
           <MedicationCalendarManager
             medications={medications}
+            medicationHistory={medicationHistory}
             patients={patients}
             doctors={doctors}
             onMedicationsUpdated={fetchInitialData}
