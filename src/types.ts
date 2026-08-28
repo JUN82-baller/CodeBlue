@@ -122,6 +122,27 @@ export interface MedicationSchedule {
 
 export type WsGroup = 'OnCallDoctors' | 'NurseStationDisplay' | 'Global' | 'AuditLogs' | 'MedicationStation';
 
+export type AiConsultationRole = 'clinical_doctor' | 'pharmacist' | 'transfer_coordinator' | 'triage_nurse';
+
+export interface GroundingSource {
+  title?: string;
+  uri?: string;
+  type?: 'web' | 'maps';
+  snippet?: string;
+}
+
+export interface AiChatMessage {
+  id: string;
+  role: 'user' | 'model';
+  text: string;
+  timestamp: string;
+  consultationRole?: AiConsultationRole;
+  modelUsed?: string;
+  groundingSources?: GroundingSource[];
+  webSearchQueries?: string[];
+  isError?: boolean;
+}
+
 export type WsClientMessage =
   | { type: 'JOIN_GROUP'; group: WsGroup; doctorId?: string; doctorName?: string }
   | { type: 'LEAVE_GROUP'; group: WsGroup }

@@ -8,6 +8,7 @@ import {
   Pill,
   Radio,
   Sliders,
+  Sparkles,
   Stethoscope,
   Sun,
   Users,
@@ -16,8 +17,8 @@ import { useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
 
 interface NavbarProps {
-  activeTab: 'doctor' | 'nurse' | 'medication' | 'simulator' | 'audit' | 'admin' | 'settings';
-  setActiveTab: (tab: 'doctor' | 'nurse' | 'medication' | 'simulator' | 'audit' | 'admin' | 'settings') => void;
+  activeTab: 'doctor' | 'nurse' | 'medication' | 'ai' | 'simulator' | 'audit' | 'admin' | 'settings';
+  setActiveTab: (tab: 'doctor' | 'nurse' | 'medication' | 'ai' | 'simulator' | 'audit' | 'admin' | 'settings') => void;
   onOpenSettings: () => void;
   isConnected: boolean;
   pendingAlertsCount: number;
@@ -188,6 +189,25 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <Calendar className="w-3.5 h-3.5" />
               <span>{t.tabMedicationCalendar}</span>
+            </button>
+
+            {/* Gemini AI Clinical Assistant Tab */}
+            <button
+              id="tab-ai-assistant"
+              onClick={() => handleTabClick('ai')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap select-none ${
+                activeTab === 'ai'
+                  ? 'bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white shadow-md shadow-purple-950/40 animate-pulse'
+                  : isDark
+                  ? 'text-indigo-400 hover:text-indigo-200 hover:bg-indigo-950/40 border border-indigo-500/20'
+                  : 'text-indigo-700 hover:text-indigo-900 hover:bg-indigo-50 border border-indigo-200'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-spin" />
+              <span>{t.tabAiAssistant}</span>
+              <span className="text-[9px] px-1 py-0.2 rounded font-bold bg-amber-400/30 text-amber-300 uppercase">
+                AI
+              </span>
             </button>
 
             <button

@@ -6,10 +6,13 @@ import { TelemetrySimulator } from './components/TelemetrySimulator';
 import { AlertAuditHistory } from './components/AlertAuditHistory';
 import { PersonnelAdmin } from './components/PersonnelAdmin';
 import { MedicationCalendarManager } from './components/MedicationCalendarManager';
+import { AiClinicalAssistant } from './components/AiClinicalAssistant';
 import { SettingsModal } from './components/SettingsModal';
+import { Bot, MessageSquare, Sparkles, X } from 'lucide-react';
 import { useLanguage } from './context/LanguageContext';
 import { useTheme } from './context/ThemeContext';
 import {
+  AiConsultationRole,
   Alert,
   Doctor,
   MedicationSchedule,
@@ -46,11 +49,22 @@ export default function App() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
-  const [activeTab, setActiveTab] = useState<'doctor' | 'nurse' | 'medication' | 'simulator' | 'audit' | 'admin' | 'settings'>('doctor');
+  const [activeTab, setActiveTab] = useState<'doctor' | 'nurse' | 'medication' | 'ai' | 'simulator' | 'audit' | 'admin' | 'settings'>('doctor');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isAiDrawerOpen, setIsAiDrawerOpen] = useState(false);
+  const [aiDrawerPatientId, setAiDrawerPatientId] = useState<string>('');
+  const [aiDrawerRole, setAiDrawerRole] = useState<AiConsultationRole>('clinical_doctor');
   const [isConnected, setIsConnected] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [hasNotificationPermission, setHasNotificationPermission] = useState(false);
+
+  const openAiConsultation = (patientId?: string, role: AiConsultationRole = 'clinical_doctor') => {
+    if (patientId) {
+      setAiDrawerPatientId(patientId);
+    }
+    setAiDrawerRole(role);
+    setIsAiDrawerOpen(true);
+  };
 
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -74,6 +88,26 @@ export default function App() {
     const granted = await requestNotificationPermission();
     setHasNotificationPermission(granted);
   };
+
+  // Global shortcut listener for Ctrl+K (or Cmd+K) to trigger #btn-floating-ai-assistant
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault();
+        const floatingBtn = document.getElementById('btn-floating-ai-assistant');
+        if (floatingBtn) {
+          floatingBtn.click();
+        } else {
+          setIsAiDrawerOpen((prev) => !prev);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
 
   // Sound user-activation listener
   useEffect(() => {
@@ -513,6 +547,7 @@ export default function App() {
             onResolveAlert={handleResolveAlert}
             onToggleOnCall={handleToggleOnCall}
             onInjectEmergency={handleInjectEmergency}
+            onConsultAi={openAiConsultation}
             doctors={doctors}
             selectedDoctorId={selectedDoctorId}
             setSelectedDoctorId={setSelectedDoctorId}
@@ -543,6 +578,18 @@ export default function App() {
             onCreateMedication={handleCreateMedication}
             onDeleteMedication={handleDeleteMedication}
           />
+        )}
+
+        {activeTab === 'ai' && (
+          <div className="h-[calc(100vh-140px)] min-h-[580px]">
+            <AiClinicalAssistant
+              patients={patients}
+              medications={medications}
+              recentVitals={recentVitals}
+              initialSelectedPatientId={aiDrawerPatientId}
+              initialRole={aiDrawerRole}
+            />
+          </div>
         )}
 
         {activeTab === 'simulator' && (
@@ -586,6 +633,47 @@ export default function App() {
         selectedDoctorId={selectedDoctorId}
         setSelectedDoctorId={setSelectedDoctorId}
       />
+
+      {/* Floating Quick AI Clinical Assistant Button (Available on all tabs) */}
+      {activeTab !== 'ai' && (
+        <div className="fixed bottom-6 right-6 z-40 flex items-center gap-2">
+          <button
+            id="btn-floating-ai-assistant"
+            onClick={() => setIsAiDrawerOpen(!isAiDrawerOpen)}
+            className="flex items-center gap-2 px-4 py-3 rounded-2xl font-extrabold text-xs sm:text-sm text-white bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 shadow-2xl shadow-purple-900/50 border border-purple-400/40 hover:scale-105 active:scale-95 transition-all cursor-pointer group"
+            title={language === 'vi' ? 'Mở Trợ Lý Quyết Định Lâm Sàng Gemini AI (Ctrl+K)' : 'Open Gemini AI Clinical Decision Support (Ctrl+K)'}
+          >
+            <div className="relative">
+              <Bot className="w-5 h-5 group-hover:rotate-12 transition-transform" />
+              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-indigo-900 animate-ping" />
+            </div>
+            <span className="hidden sm:inline">
+              {language === 'vi' ? 'Hỏi AI Cấp Cứu' : 'AI Clinical Consult'}
+            </span>
+            <kbd className="hidden md:inline-flex items-center px-1.5 py-0.5 text-[10px] font-mono font-bold bg-white/20 text-white rounded-md border border-white/30 backdrop-blur-xs">
+              Ctrl+K
+            </kbd>
+            <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-spin" />
+          </button>
+        </div>
+      )}
+
+      {/* Floating AI Consultation Modal Drawer */}
+      {isAiDrawerOpen && activeTab !== 'ai' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+          <div className="relative w-full max-w-4xl h-[90vh] max-h-[780px] flex flex-col rounded-2xl overflow-hidden shadow-2xl border border-indigo-500/30">
+            <AiClinicalAssistant
+              patients={patients}
+              medications={medications}
+              recentVitals={recentVitals}
+              initialSelectedPatientId={aiDrawerPatientId}
+              initialRole={aiDrawerRole}
+              isFloatingDrawer={true}
+              onCloseFloating={() => setIsAiDrawerOpen(false)}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Footer info bar */}
       <footer

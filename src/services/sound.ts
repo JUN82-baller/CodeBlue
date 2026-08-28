@@ -162,3 +162,178 @@ export function playAcknowledgeChime() {
     console.warn('Cannot play acknowledge chime:', err);
   }
 }
+
+// Simulated phone ringback tone (Dual 440Hz + 480Hz)
+let ringbackInterval: number | null = null;
+export function startPhoneRingbackTone() {
+  stopPhoneRingbackTone();
+  try {
+    const ctx = getAudioContext();
+    const playRingBurst = () => {
+      try {
+        const now = ctx.currentTime;
+        const osc1 = ctx.createOscillator();
+        const osc2 = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc1.type = 'sine';
+        osc2.type = 'sine';
+        osc1.frequency.setValueAtTime(440, now);
+        osc2.frequency.setValueAtTime(480, now);
+
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(0.15, now + 0.05);
+        gain.gain.setValueAtTime(0.15, now + 1.2);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 1.3);
+
+        osc1.connect(gain);
+        osc2.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc1.start(now);
+        osc2.start(now);
+        osc1.stop(now + 1.35);
+        osc2.stop(now + 1.35);
+      } catch {
+        // ignore
+      }
+    };
+
+    playRingBurst();
+    ringbackInterval = window.setInterval(playRingBurst, 3000);
+  } catch (e) {
+    console.warn('Cannot start ringback tone:', e);
+  }
+}
+
+export function stopPhoneRingbackTone() {
+  if (ringbackInterval !== null) {
+    clearInterval(ringbackInterval);
+    ringbackInterval = null;
+  }
+}
+
+// Phone call connected tone (two high blips)
+export function playCallConnectedTone() {
+  try {
+    const ctx = getAudioContext();
+    const now = ctx.currentTime;
+    [600, 900].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const start = now + i * 0.12;
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, start);
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(0.18, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.1);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + 0.12);
+    });
+  } catch {
+    // ignore
+  }
+}
+
+// Phone call end/hangup tone (3 low beeps)
+export function playCallEndTone() {
+  try {
+    const ctx = getAudioContext();
+    const now = ctx.currentTime;
+    [480, 480, 480].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const start = now + i * 0.15;
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, start);
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(0.15, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.1);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + 0.12);
+    });
+  } catch {
+    // ignore
+  }
+}
+
+// DTMF Keypad Tone
+export function playDtmfTone(num: string) {
+  try {
+    const ctx = getAudioContext();
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const freq = 697 + (parseInt(num, 10) || 5) * 60;
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, now);
+    gain.gain.setValueAtTime(0.15, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.13);
+  } catch {
+    // ignore
+  }
+}
+
+// Message Sent Tone (high energetic pop)
+export function playMessageSentTone() {
+  try {
+    const ctx = getAudioContext();
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(587.33, now); // D5
+    osc.frequency.exponentialRampToValueAtTime(880, now + 0.08); // A5
+
+    gain.gain.setValueAtTime(0.2, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.16);
+  } catch {
+    // ignore
+  }
+}
+
+// Message Received Tone (pleasant two-tone)
+export function playMessageReceivedTone() {
+  try {
+    const ctx = getAudioContext();
+    const now = ctx.currentTime;
+    [784, 1046.5].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const start = now + i * 0.07;
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, start);
+      gain.gain.setValueAtTime(0.18, start);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.12);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + 0.14);
+    });
+  } catch {
+    // ignore
+  }
+}
+

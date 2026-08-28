@@ -3,9 +3,11 @@ import http from 'http';
 import path from 'path';
 import { WebSocketServer, WebSocket } from 'ws';
 import { createServer as createViteServer } from 'vite';
+import { GoogleGenAI } from '@google/genai';
 import {
   Alert,
   Doctor,
+  GroundingSource,
   MedicationSchedule,
   Patient,
   SystemSettings,
@@ -18,6 +20,23 @@ import {
 const PORT = 3000;
 const app = express();
 app.use(express.json());
+
+// Initialize GoogleGenAI client
+let geminiClient: GoogleGenAI | null = null;
+function getGeminiClient(): GoogleGenAI {
+  if (!geminiClient) {
+    const apiKey = process.env.GEMINI_API_KEY || '';
+    geminiClient = new GoogleGenAI({
+      apiKey,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        },
+      },
+    });
+  }
+  return geminiClient;
+}
 
 // In-Memory Database with realistic seed data
 const initialPatients: Patient[] = [
@@ -233,7 +252,237 @@ let systemSettings: SystemSettings = {
   escalationTimeoutSeconds: 15,
 };
 
-let alerts: Alert[] = [];
+const createSeedDate = (hoursAgo: number, minutesAgo: number = 0) => {
+  const d = new Date();
+  d.setHours(d.getHours() - hoursAgo);
+  d.setMinutes(d.getMinutes() - minutesAgo);
+  return d.toISOString();
+};
+
+const initialSeedAlerts: Alert[] = [
+  {
+    id: 'ALT-SEED-01',
+    patientId: 'P101',
+    patientName: 'Nguyễn Văn Hùng',
+    roomNumber: 'P.101',
+    severity: 'Fatal',
+    status: 'Resolved',
+    heartRate: 185,
+    spO2: 84,
+    reason: 'Rung thất cấp (V-Fib) - Nhịp tim 185 BPM, SpO2 84%',
+    createdAt: createSeedDate(1, 15),
+    acknowledgedAt: createSeedDate(1, 14),
+    acknowledgedBy: 'BS. CKII. Nguyễn Quốc Trí',
+    acknowledgedRole: 'Bác Sĩ Trực Cấp Cứu',
+    responseTimeSeconds: 7,
+    escalatedToBackup: false,
+    resolvedAt: createSeedDate(1, 5),
+    resolvedBy: 'BS. CKII. Nguyễn Quốc Trí',
+    resolutionNote: 'Đã sốc điện phá rung 200J và tiêm Amiodarone 150mg tĩnh mạch. Nhịp xoang đã phục hồi.',
+  },
+  {
+    id: 'ALT-SEED-02',
+    patientId: 'P102',
+    patientName: 'Trần Thị Mai',
+    roomNumber: 'P.102',
+    severity: 'Critical',
+    status: 'Resolved',
+    heartRate: 36,
+    spO2: 91,
+    reason: 'Nhịp tim chậm nguy hiểm 36 BPM kèm tụt HA',
+    createdAt: createSeedDate(1, 40),
+    acknowledgedAt: createSeedDate(1, 39),
+    acknowledgedBy: 'ThS. BS. Phạm Thu Trang',
+    acknowledgedRole: 'Bác Sĩ Hồi Sức',
+    responseTimeSeconds: 11,
+    escalatedToBackup: false,
+    resolvedAt: createSeedDate(1, 20),
+    resolvedBy: 'ThS. BS. Phạm Thu Trang',
+    resolutionNote: 'Đã tiêm Atropine 0.5mg IV. Nhịp tim tăng lên 68 BPM ổn định.',
+  },
+  {
+    id: 'ALT-SEED-03',
+    patientId: 'P203',
+    patientName: 'Phạm Minh Tuấn',
+    roomNumber: 'P.203',
+    severity: 'Critical',
+    status: 'Resolved',
+    heartRate: 142,
+    spO2: 86,
+    reason: 'Thiếu oxy cấp (SpO2 86%) & Nhịp nhanh 142 BPM',
+    createdAt: createSeedDate(2, 10),
+    acknowledgedAt: createSeedDate(2, 9),
+    acknowledgedBy: 'ĐD. Đặng Thị Hồng Hạnh',
+    acknowledgedRole: 'Điều Dưỡng Trưởng Trạm',
+    responseTimeSeconds: 9,
+    escalatedToBackup: false,
+    resolvedAt: createSeedDate(1, 55),
+    resolvedBy: 'BS. CKI. Lê Hải Đăng',
+    resolutionNote: 'Tăng oxy mask có túi 10L/phút, SpO2 tăng lên 96%.',
+  },
+  {
+    id: 'ALT-SEED-04',
+    patientId: 'P308',
+    patientName: 'Vũ Quốc Bảo',
+    roomNumber: 'P.308',
+    severity: 'Warning',
+    status: 'Resolved',
+    heartRate: 124,
+    spO2: 95,
+    reason: 'Nhịp nhanh xoang nhẹ sau mổ 124 BPM',
+    createdAt: createSeedDate(3, 20),
+    acknowledgedAt: createSeedDate(3, 19),
+    acknowledgedBy: 'BS. CKII. Nguyễn Quốc Trí',
+    acknowledgedRole: 'Bác Sĩ Trực',
+    responseTimeSeconds: 14,
+    escalatedToBackup: false,
+    resolvedAt: createSeedDate(3, 0),
+    resolvedBy: 'BS. CKII. Nguyễn Quốc Trí',
+    resolutionNote: 'Bệnh nhân đau vết mổ, đã cho giảm đau Paracetamol 1g.',
+  },
+  {
+    id: 'ALT-SEED-05',
+    patientId: 'P101',
+    patientName: 'Nguyễn Văn Hùng',
+    roomNumber: 'P.101',
+    severity: 'Critical',
+    status: 'Resolved',
+    heartRate: 158,
+    spO2: 88,
+    reason: 'Cơn rung nhĩ đáp ứng thất nhanh 158 BPM',
+    createdAt: createSeedDate(5, 5),
+    acknowledgedAt: createSeedDate(5, 4),
+    acknowledgedBy: 'BS. CKII. Nguyễn Quốc Trí',
+    acknowledgedRole: 'Bác Sĩ Trực',
+    responseTimeSeconds: 12,
+    escalatedToBackup: false,
+    resolvedAt: createSeedDate(4, 45),
+    resolvedBy: 'BS. CKII. Nguyễn Quốc Trí',
+    resolutionNote: 'Kiểm soát tần số thất bằng Metoprolol 5mg IV.',
+  },
+  {
+    id: 'ALT-SEED-06',
+    patientId: 'P203',
+    patientName: 'Phạm Minh Tuấn',
+    roomNumber: 'P.203',
+    severity: 'Fatal',
+    status: 'Resolved',
+    heartRate: 172,
+    spO2: 82,
+    reason: 'Cơn nhịp nhanh thất vô mạch - Báo động Đỏ ICU',
+    createdAt: createSeedDate(5, 45),
+    acknowledgedAt: createSeedDate(5, 44),
+    acknowledgedBy: 'BS. Anh Vũ',
+    acknowledgedRole: 'Bác Sĩ Dự Phòng',
+    responseTimeSeconds: 18,
+    escalatedToBackup: true,
+    resolvedAt: createSeedDate(5, 20),
+    resolvedBy: 'BS. Anh Vũ',
+    resolutionNote: 'Đã kích hoạt Code Blue, phá rung đồng bộ 100J thành công.',
+  },
+  {
+    id: 'ALT-SEED-07',
+    patientId: 'P102',
+    patientName: 'Trần Thị Mai',
+    roomNumber: 'P.102',
+    severity: 'Warning',
+    status: 'Resolved',
+    heartRate: 46,
+    spO2: 96,
+    reason: 'Nhịp tim chậm 46 BPM khi nghỉ ngơi',
+    createdAt: createSeedDate(8, 30),
+    acknowledgedAt: createSeedDate(8, 29),
+    acknowledgedBy: 'ThS. BS. Phạm Thu Trang',
+    acknowledgedRole: 'Bác Sĩ Trực',
+    responseTimeSeconds: 8,
+    escalatedToBackup: false,
+    resolvedAt: createSeedDate(8, 10),
+    resolvedBy: 'ThS. BS. Phạm Thu Trang',
+    resolutionNote: 'Theo dõi thêm, chưa cần can thiệp thuốc.',
+  },
+  {
+    id: 'ALT-SEED-08',
+    patientId: 'P308',
+    patientName: 'Vũ Quốc Bảo',
+    roomNumber: 'P.308',
+    severity: 'Critical',
+    status: 'Resolved',
+    heartRate: 138,
+    spO2: 89,
+    reason: 'Suy hô hấp nhẹ và nhịp nhanh 138 BPM',
+    createdAt: createSeedDate(11, 15),
+    acknowledgedAt: createSeedDate(11, 14),
+    acknowledgedBy: 'BS. CKI. Lê Hải Đăng',
+    acknowledgedRole: 'Bác Sĩ Trực',
+    responseTimeSeconds: 10,
+    escalatedToBackup: false,
+    resolvedAt: createSeedDate(11, 0),
+    resolvedBy: 'BS. CKI. Lê Hải Đăng',
+    resolutionNote: 'Thở oxy cannula 3L/phút, SpO2 cải thiện lên 97%.',
+  },
+  {
+    id: 'ALT-SEED-09',
+    patientId: 'P101',
+    patientName: 'Nguyễn Văn Hùng',
+    roomNumber: 'P.101',
+    severity: 'Warning',
+    status: 'Resolved',
+    heartRate: 122,
+    spO2: 94,
+    reason: 'Tăng nhịp tim sau vận động nhẹ 122 BPM',
+    createdAt: createSeedDate(14, 50),
+    acknowledgedAt: createSeedDate(14, 49),
+    acknowledgedBy: 'ĐD. Đặng Thị Hồng Hạnh',
+    acknowledgedRole: 'Điều Dưỡng Trực',
+    responseTimeSeconds: 6,
+    escalatedToBackup: false,
+    resolvedAt: createSeedDate(14, 30),
+    resolvedBy: 'BS. CKII. Nguyễn Quốc Trí',
+    resolutionNote: 'Bệnh nhân nghỉ ngơi tại giường, mạch trở về 82 BPM.',
+  },
+  {
+    id: 'ALT-SEED-10',
+    patientId: 'P203',
+    patientName: 'Phạm Minh Tuấn',
+    roomNumber: 'P.203',
+    severity: 'Fatal',
+    status: 'Resolved',
+    heartRate: 190,
+    spO2: 80,
+    reason: 'Rung thất tái phát - Huyết áp tụt kẹp',
+    createdAt: createSeedDate(16, 20),
+    acknowledgedAt: createSeedDate(16, 19),
+    acknowledgedBy: 'BS. CKII. Nguyễn Quốc Trí',
+    acknowledgedRole: 'Bác Sĩ Trực',
+    responseTimeSeconds: 5,
+    escalatedToBackup: false,
+    resolvedAt: createSeedDate(16, 0),
+    resolvedBy: 'BS. CKII. Nguyễn Quốc Trí',
+    resolutionNote: 'Hồi sinh tim phổi nâng cao (ACLS), sốc điện 200J và đặt đường truyền trung tâm.',
+  },
+  {
+    id: 'ALT-SEED-11',
+    patientId: 'P102',
+    patientName: 'Trần Thị Mai',
+    roomNumber: 'P.102',
+    severity: 'Critical',
+    status: 'Resolved',
+    heartRate: 38,
+    spO2: 92,
+    reason: 'Bloc nhĩ thất độ III - Nhịp thoát bộ nối 38 BPM',
+    createdAt: createSeedDate(20, 10),
+    acknowledgedAt: createSeedDate(20, 9),
+    acknowledgedBy: 'ThS. BS. Phạm Thu Trang',
+    acknowledgedRole: 'Bác Sĩ Trực',
+    responseTimeSeconds: 9,
+    escalatedToBackup: false,
+    resolvedAt: createSeedDate(19, 50),
+    resolvedBy: 'ThS. BS. Phạm Thu Trang',
+    resolutionNote: 'Chuẩn bị đặt máy tạo nhịp tạm thời cấp cứu.',
+  },
+];
+
+let alerts: Alert[] = [...initialSeedAlerts];
 let vitalReadings: VitalReading[] = [];
 
 // WebSocket Client management
@@ -816,6 +1065,143 @@ app.get('/api/google-calendar/auth-info', (req, res) => {
     clientId: process.env.GOOGLE_CLIENT_ID || process.env.GOOGLE_OAUTH_CLIENT_ID || '',
     scopes: ['https://www.googleapis.com/auth/calendar.events', 'https://www.googleapis.com/auth/calendar'],
   });
+});
+
+// ==========================================
+// GEMINI CLINICAL AI & GROUNDING APIS
+// ==========================================
+const systemInstructionsByRole: Record<string, string> = {
+  clinical_doctor: `Bạn là Bác Sĩ Cố Vấn Hồi Sức Cấp Cứu ICU & Tim Mạch Lâm Sàng (Senior ICU & Emergency Cardiology Consultant).
+Nhiệm vụ: Cung cấp hỗ trợ quyết định lâm sàng khẩn cấp (Clinical Decision Support), hướng dẫn xử trí theo phác đồ cấp cứu hồi sinh tim phổi nâng cao (ACLS Guidelines), xử trí rối loạn nhịp tim nguy hiểm (Rung nhĩ, Rung thất, Cơn nhịp nhanh kịch phát trên thất SVT, Nhịp nhanh thất VT, Nhịp chậm xoang nặng, Block AV các độ), xử trí suy hô hấp cấp, tụt SpO2, sốc tim và phù phổi cấp.
+Định dạng trả lời:
+- Gạch đầu dòng rõ ràng, phân cấp ưu tiên hành động A-B-C (Đường thở - Hô hấp - Tuần hoàn).
+- Phác đồ thuốc và liều lượng rõ ràng (ví dụ: Adrenaline 1mg IV, Amiodarone 300mg pha truyền, Atropine 0.5-1mg IV bolus, Sốc điện đồng bộ/không đồng bộ Joules).
+- Cảnh báo chống chỉ định và dấu hiệu sinh tồn cần theo dõi sát.
+- Sử dụng tiếng Việt chuẩn y khoa, giọng điệu chuyên nghiệp, súc tích và khẩn cấp.`,
+
+  pharmacist: `Bạn là Dược Sĩ Lâm Sàng Bệnh Viện (Clinical Pharmacist & Drug Safety Specialist).
+Nhiệm vụ: Tra cứu chính xác dược lý học, liều dùng người lớn/suy thận (eGFR)/suy gan/người cao tuổi, tương tác thuốc nguy hiểm (Drug-Drug Interactions), chống chỉ định, đường dùng (IV bolus, IV truyền chậm, Tiêm dưới da, Uống), tốc độ pha truyền và dung dịch tương thích (NaCl 0.9%, Glucose 5%).
+Định dạng trả lời:
+- Bảng hoặc danh sách phân tích tương tác và mức độ nghiêm trọng.
+- Khuyến nghị điều chỉnh liều hoặc thuốc thay thế an toàn.
+- Thời điểm dùng thuốc và các chỉ số sinh tồn cần kiểm tra trước khi dùng (ví dụ: đếm nhịp tim trước khi dùng Digoxin, đo huyết áp trước khi dùng thuốc hạ áp/lợi tiểu).`,
+
+  transfer_coordinator: `Bạn là Điều Phối Viên Chuyển Tuyến Cấp Cứu & Tìm Cơ Sở Y Tế Chuyên Sâu (Emergency Medical Transfer Coordinator).
+Nhiệm vụ: Tìm kiếm các bệnh viện tuyến trên, trung tâm tim mạch can thiệp (Cathlab 24/7), trung tâm đột quỵ não, hồi sức tích cực ICU lân cận phù hợp với tình trạng cấp cứu của bệnh nhân.
+Cung cấp:
+1. Danh sách cơ sở y tế tuyến trên gần nhất và thế mạnh chuyên môn.
+2. Tiêu chuẩn chỉ định chuyển viện an toàn (Transfer Eligibility Criteria).
+3. Các bước ổn định bệnh nhân trước khi chuyển (đường truyền, thở oxy, monitor di động, thuốc cấp cứu mang theo).
+4. Đường link và thông tin địa điểm cụ thể.`,
+
+  triage_nurse: `Bạn là Điều Dưỡng Trưởng Trạm Phân Loại Sinh Tồn & Xử Trí Tức Thì (Triage & ICU Charge Nurse).
+Nhiệm vụ: Đánh giá nhanh tình trạng người bệnh dựa trên chỉ số sinh tồn (Mạch, Huyết áp, SpO2, Nhịp thở, Điểm cảnh báo sớm MEWS). Đưa ra các hành động điều dưỡng tức thì tại giường: tư thế nằm (Fowler, nằm đầu bằng, nghiêng an toàn), cung cấp oxy (cannula, mask có túi thở lại, thở máy không xâm lấn BiPAP), kiểm tra đường truyền tĩnh mạch, chuẩn bị máy khử rung tim (Defibrillator) và xe tiêm cấp cứu Crash Cart trong khi chờ bác sĩ đến.`
+};
+
+app.post('/api/ai/chat', async (req, res) => {
+  try {
+    const {
+      messages,
+      role = 'clinical_doctor',
+      modelPreference = 'gemini-3.7-flash',
+      useSearch = false,
+      useMaps = false,
+      userLocation,
+      patientContext,
+    } = req.body;
+
+    if (!messages || !Array.isArray(messages) || messages.length === 0) {
+      res.status(400).json({ error: 'messages array is required' });
+      return;
+    }
+
+    const aiClient = getGeminiClient();
+
+    let baseInstruction = systemInstructionsByRole[role] || systemInstructionsByRole.clinical_doctor;
+    if (patientContext) {
+      baseInstruction += `\n\n[HỒ SƠ BỆNH NHÂN HIỆN TẠI ĐANG THEO DÕI]:
+- Họ và tên: ${patientContext.patientName || 'N/A'} (Mã BN: ${patientContext.patientId || 'N/A'}, Phòng: ${patientContext.roomNumber || 'N/A'}, Giường: ${patientContext.bed || 'N/A'})
+- Tuổi: ${patientContext.age || 'N/A'}
+- Chẩn đoán: ${patientContext.diagnosis || 'Chưa xác định'}
+- Chỉ số hiện tại: Nhịp tim ${patientContext.heartRate ? patientContext.heartRate + ' BPM' : 'N/A'} | SpO2: ${patientContext.spO2 ? patientContext.spO2 + '%' : 'N/A'}
+- Thuốc đang điều trị: ${patientContext.medications && patientContext.medications.length ? patientContext.medications.join(', ') : 'Chưa ghi nhận'}
+Hãy dựa trên thông tin lâm sàng thực tế này để đưa ra chỉ định chính xác nhất.`;
+    }
+
+    let selectedModel = modelPreference;
+    let tools: any[] | undefined = undefined;
+    let toolConfig: any = undefined;
+
+    if (useMaps) {
+      selectedModel = 'gemini-3.5-flash';
+      tools = [{ googleMaps: {} }];
+      if (userLocation && userLocation.latitude && userLocation.longitude) {
+        toolConfig = {
+          retrievalConfig: {
+            latLng: {
+              latitude: Number(userLocation.latitude),
+              longitude: Number(userLocation.longitude),
+            },
+          },
+        };
+      }
+    } else if (useSearch) {
+      selectedModel = modelPreference || 'gemini-3.5-flash';
+      tools = [{ googleSearch: {} }];
+    }
+
+    // Format conversation history for Gemini API
+    const formattedContents = messages.map((m: any) => ({
+      role: m.role === 'user' ? 'user' : 'model',
+      parts: [{ text: typeof m.text === 'string' ? m.text : String(m.text || '') }],
+    }));
+
+    const response = await aiClient.models.generateContent({
+      model: selectedModel,
+      contents: formattedContents,
+      config: {
+        systemInstruction: baseInstruction,
+        ...(tools ? { tools } : {}),
+        ...(toolConfig ? { toolConfig } : {}),
+      },
+    });
+
+    const text = response.text || 'Đã tiếp nhận yêu cầu lâm sàng.';
+    const groundingChunksRaw = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+    const webSearchQueries = response.candidates?.[0]?.groundingMetadata?.webSearchQueries || [];
+
+    const groundingSources: GroundingSource[] = [];
+    for (const chunk of groundingChunksRaw) {
+      if ((chunk as any).web) {
+        groundingSources.push({
+          title: (chunk as any).web.title || 'Nguồn y khoa trực tuyến',
+          uri: (chunk as any).web.uri,
+          type: 'web',
+        });
+      } else if ((chunk as any).maps) {
+        groundingSources.push({
+          title: (chunk as any).maps.title || 'Cơ sở Y tế trên Google Maps',
+          uri: (chunk as any).maps.uri,
+          type: 'maps',
+          snippet: (chunk as any).maps.placeAnswerSources?.reviewSnippets?.[0] || '',
+        });
+      }
+    }
+
+    res.json({
+      text,
+      modelUsed: selectedModel,
+      groundingSources,
+      webSearchQueries,
+    });
+  } catch (error: any) {
+    console.error('Error generating AI clinical consultation:', error);
+    res.status(500).json({
+      error: error?.message || 'Lỗi khi kết nối với Gemini AI Assistant',
+      fallbackMessage:
+        'Không thể lấy phản hồi từ mô hình AI. Vui lòng kiểm tra lại phác đồ cấp cứu tại trạm hoặc liên hệ Bác sĩ Trưởng ca trực ICU.',
+    });
+  }
 });
 
 // Reset Demo Data

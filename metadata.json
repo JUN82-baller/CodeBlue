@@ -1,6 +1,6 @@
 {
   "name": "Hệ Thống Cảnh Báo Khẩn Cấp Bệnh Viện",
   "description": "Hệ thống phát tín hiệu và cảnh báo khẩn cấp thời gian thực gọi bác sĩ và trạm y tá khi phát hiện chỉ số sinh tồn bất thường.",
-  "requestFramePermissions": ["notifications"],
+  "requestFramePermissions": ["notifications", "geolocation"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
