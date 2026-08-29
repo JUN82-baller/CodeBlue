@@ -23,11 +23,14 @@ import {
   Zap,
   Gauge,
   Info,
+  Mail,
 } from 'lucide-react';
 import { Alert, Doctor, Patient, SystemSettings, VitalReading } from '../types';
 import { useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
 import { QuickContactModal } from './QuickContactModal';
+import { speakRedAlertAnnouncement } from '../services/voiceAnnouncement';
+import { triggerRedAlertVibration, triggerAcknowledgeHaptic } from '../services/haptic';
 
 export type SeverityLevel = 'Fatal' | 'Critical' | 'Warning';
 
@@ -296,6 +299,7 @@ interface DoctorPortalProps {
   doctors?: Doctor[];
   selectedDoctorId?: string;
   setSelectedDoctorId?: (id: string) => void;
+  onOpenGmail?: (alert?: Alert, doctor?: Doctor) => void;
 }
 
 export const DoctorPortal: React.FC<DoctorPortalProps> = ({
@@ -312,6 +316,7 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
   doctors = [],
   selectedDoctorId,
   setSelectedDoctorId,
+  onOpenGmail,
 }) => {
   const { t, language } = useLanguage();
   const { theme } = useTheme();
@@ -671,6 +676,26 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
 
                         <div className="flex gap-2">
                           <button
+                            id={`btn-announce-alert-${alert.id}`}
+                            onClick={() => {
+                              triggerRedAlertVibration(false);
+                              speakRedAlertAnnouncement({
+                                patientName: alert.patientName,
+                                roomNumber: alert.roomNumber,
+                                heartRate: alert.heartRate,
+                                spO2: alert.spO2,
+                                reason: alert.reason,
+                                severity: alert.severity,
+                              }, language);
+                            }}
+                            className="px-3 py-2.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-bold text-xs rounded-xl shadow-md border border-amber-400/40 transition-all flex items-center justify-center gap-1 cursor-pointer"
+                            title={language === 'vi' ? 'Phát loa thông báo khẩn cấp ngay lập tức' : 'Broadcast instant emergency voice announcement'}
+                          >
+                            <Volume2 className="w-4 h-4 text-amber-400 animate-bounce" />
+                            <span className="hidden sm:inline">{language === 'vi' ? 'Phát loa' : 'Voice'}</span>
+                          </button>
+
+                          <button
                             id={`btn-quick-contact-call-${alert.id}`}
                             onClick={() => handleOpenQuickContact(alert, 'call')}
                             className="flex-1 px-3.5 py-2.5 bg-red-600/90 hover:bg-red-500 active:scale-95 text-white font-bold text-xs rounded-xl shadow-md border border-red-400/40 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
@@ -689,6 +714,18 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
                             <MessageSquare className="w-4 h-4" />
                             <span className="hidden sm:inline">Chat</span>
                           </button>
+
+                          {onOpenGmail && (
+                            <button
+                              id={`btn-gmail-dispatch-alert-${alert.id}`}
+                              onClick={() => onOpenGmail(alert, doctor)}
+                              className="px-3 py-2.5 bg-rose-600/90 hover:bg-rose-500 active:scale-95 text-white font-bold text-xs rounded-xl shadow-md border border-rose-400/40 transition-all flex items-center justify-center gap-1 cursor-pointer"
+                              title={language === 'vi' ? 'Gửi email Gmail cảnh báo đỏ khẩn cấp đến kíp trực' : 'Dispatch Code Red email alert via Gmail'}
+                            >
+                              <Mail className="w-4 h-4" />
+                              <span className="hidden sm:inline">Mail</span>
+                            </button>
+                          )}
 
                           {onConsultAi && (
                             <button
@@ -1035,8 +1072,8 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
                 </div>
 
                 {/* Quick Test Trigger Buttons & AI Consult */}
-                <div className="mt-3 pt-2.5 border-t border-slate-800/60 flex items-center justify-between gap-2 text-xs">
-                  <div className="flex items-center gap-1.5">
+                <div className="mt-3 pt-2.5 border-t border-slate-800/60 flex items-center justify-between gap-2 text-xs flex-wrap">
+                  <div className="flex items-center gap-1.5 flex-wrap">
                     {onConsultAi && (
                       <button
                         id={`btn-ai-consult-patient-${patient.id}`}
@@ -1048,6 +1085,35 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
                         <span>Hỏi AI</span>
                       </button>
                     )}
+
+                    <button
+                      id={`btn-voice-announce-patient-${patient.id}`}
+                      onClick={() => {
+                        triggerRedAlertVibration(false);
+                        speakRedAlertAnnouncement(
+                          {
+                            patientName: patient.name,
+                            roomNumber: patient.roomNumber,
+                            heartRate: currentBpm,
+                            spO2: currentSpO2,
+                            reason: patSeverity.label,
+                            severity: patSeverity.severity,
+                          },
+                          language
+                        );
+                      }}
+                      className={`px-2 py-1 rounded border text-[10px] font-bold transition-colors cursor-pointer flex items-center gap-1 ${
+                        patSeverity.severity === 'Fatal' || patSeverity.severity === 'Critical'
+                          ? 'bg-red-600 hover:bg-red-500 text-white border-red-500 animate-pulse shadow-xs'
+                          : isDark
+                          ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
+                          : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'
+                      }`}
+                      title={language === 'vi' ? 'Phát thông báo giọng nói khẩn cấp cho bệnh nhân này' : 'Broadcast voice announcement for this patient'}
+                    >
+                      <Volume2 className={`w-3 h-3 ${patSeverity.severity === 'Fatal' || patSeverity.severity === 'Critical' ? 'animate-bounce text-white' : 'text-slate-400'}`} />
+                      <span>{language === 'vi' ? 'Phát loa' : 'Voice'}</span>
+                    </button>
                   </div>
                   <div className="flex gap-1.5">
                     <button
@@ -1083,6 +1149,7 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
         patients={patients}
         doctors={doctors}
         initialMode={contactMode}
+        onOpenGmail={onOpenGmail}
       />
     </div>
   );

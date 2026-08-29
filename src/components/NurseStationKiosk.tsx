@@ -18,6 +18,8 @@ import {
 import { Alert, Doctor, Patient, SystemSettings, VitalReading } from '../types';
 import { useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
+import { speakRedAlertAnnouncement } from '../services/voiceAnnouncement';
+import { triggerRedAlertVibration, triggerAcknowledgeHaptic } from '../services/haptic';
 
 interface NurseStationKioskProps {
   alerts: Alert[];
@@ -73,6 +75,7 @@ export const NurseStationKiosk: React.FC<NurseStationKioskProps> = ({
   }, []);
 
   const handleKioskAcknowledge = async (alertId: string) => {
+    triggerAcknowledgeHaptic();
     setProcessingAlertId(alertId);
     try {
       await onAcknowledgeAlert(
@@ -200,7 +203,7 @@ export const NurseStationKiosk: React.FC<NurseStationKioskProps> = ({
                   )}
                 </div>
 
-                {/* Right: Big Acknowledge Button */}
+                {/* Right: Big Acknowledge Button & Voice Broadcast */}
                 <div className="w-full xl:w-auto flex flex-col gap-2 min-w-[260px]">
                   <button
                     id={`btn-ack-nurse-${alert.id}`}
@@ -210,6 +213,19 @@ export const NurseStationKiosk: React.FC<NurseStationKioskProps> = ({
                   >
                     <CheckCircle2 className="w-6 h-6" />
                     <span>{processingAlertId === alert.id ? t.btnAcknowledging : t.btnNurseAcknowledge}</span>
+                  </button>
+
+                  <button
+                    id={`btn-kiosk-voice-${alert.id}`}
+                    onClick={() => {
+                      triggerRedAlertVibration(false);
+                      speakRedAlertAnnouncement(alert, language);
+                    }}
+                    className="w-full py-2.5 px-4 bg-slate-900/90 hover:bg-slate-800 text-amber-300 text-xs font-bold rounded-xl border border-amber-400/40 transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                    title={language === 'vi' ? 'Phát loa thông báo khẩn cấp ngay' : 'Broadcast voice announcement now'}
+                  >
+                    <Volume2 className="w-4 h-4 text-amber-400 animate-bounce" />
+                    <span>{language === 'vi' ? 'Phát loa thông báo giọng nói' : 'Broadcast Voice Announcement'}</span>
                   </button>
                 </div>
               </div>

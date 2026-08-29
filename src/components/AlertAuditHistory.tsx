@@ -30,9 +30,10 @@ import { HourlyAlertChart } from './HourlyAlertChart';
 interface AlertAuditHistoryProps {
   alerts: Alert[];
   stats: SystemStats | null;
+  onOpenGoogleSheets?: () => void;
 }
 
-export const AlertAuditHistory: React.FC<AlertAuditHistoryProps> = ({ alerts, stats }) => {
+export const AlertAuditHistory: React.FC<AlertAuditHistoryProps> = ({ alerts, stats, onOpenGoogleSheets }) => {
   const { t, language } = useLanguage();
   const { theme } = useTheme();
   const isDark = theme === 'dark';
@@ -696,6 +697,35 @@ export const AlertAuditHistory: React.FC<AlertAuditHistoryProps> = ({ alerts, st
                         24 giờ
                       </span>
                     </button>
+
+                    {/* Option 4: Google Sheets Cloud Sync */}
+                    {onOpenGoogleSheets && (
+                      <button
+                        id="btn-export-opt-sheets"
+                        onClick={() => {
+                          setShowExportMenu(false);
+                          onOpenGoogleSheets();
+                        }}
+                        className={`w-full text-left px-2.5 py-2 rounded-lg flex items-center justify-between transition-colors cursor-pointer border-t ${
+                          isDark ? 'hover:bg-emerald-950/40 text-emerald-300 border-slate-800' : 'hover:bg-emerald-50 text-emerald-800 border-slate-100'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                          <div>
+                            <div className="font-bold">
+                              {language === 'vi' ? 'Đồng bộ Google Sheets' : 'Google Sheets Sync'}
+                            </div>
+                            <div className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                              {language === 'vi' ? 'Xuất / Cập nhật bảng tính đám mây' : 'Sync alerts to cloud spreadsheet'}
+                            </div>
+                          </div>
+                        </div>
+                        <span className="font-mono font-bold text-[11px] text-emerald-400">
+                          Cloud
+                        </span>
+                      </button>
+                    )}
                   </div>
                 </>
               )}

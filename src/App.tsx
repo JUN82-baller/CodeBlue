@@ -5,10 +5,13 @@ import { NurseStationKiosk } from './components/NurseStationKiosk';
 import { TelemetrySimulator } from './components/TelemetrySimulator';
 import { AlertAuditHistory } from './components/AlertAuditHistory';
 import { PersonnelAdmin } from './components/PersonnelAdmin';
+import { AdminStaffPortal } from './components/AdminStaffPortal';
 import { MedicationCalendarManager } from './components/MedicationCalendarManager';
 import { AiClinicalAssistant } from './components/AiClinicalAssistant';
 import { SettingsModal } from './components/SettingsModal';
-import { Bot, MessageSquare, Sparkles, X } from 'lucide-react';
+import { GoogleSheetsSyncModal } from './components/GoogleSheetsSyncModal';
+import { GmailDispatcherModal } from './components/GmailDispatcherModal';
+import { Bot, MessageSquare, Sparkles, X, ShieldAlert, Volume2, VolumeX, PhoneCall, Bed, AlertTriangle } from 'lucide-react';
 import { useLanguage } from './context/LanguageContext';
 import { useTheme } from './context/ThemeContext';
 import {
@@ -35,6 +38,16 @@ import {
   requestNotificationPermission,
   sendDesktopAlertNotification,
 } from './services/notifications';
+import {
+  speakRedAlertAnnouncement,
+  stopVoiceAnnouncement,
+} from './services/voiceAnnouncement';
+import {
+  triggerRedAlertVibration,
+  triggerEscalationVibration,
+  triggerAcknowledgeHaptic,
+  stopHapticVibration,
+} from './services/haptic';
 
 const defaultSettings: SystemSettings = {
   minNormalHeartRate: 50,
@@ -50,8 +63,44 @@ export default function App() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
-  const [activeTab, setActiveTab] = useState<'doctor' | 'nurse' | 'medication' | 'ai' | 'simulator' | 'audit' | 'admin' | 'settings'>('doctor');
+  const [portalMode, setPortalMode] = useState<'clinical' | 'admin'>(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (
+        urlParams.get('portal') === 'admin' ||
+        window.location.pathname.startsWith('/admin') ||
+        window.location.hash.includes('admin')
+      ) {
+        return 'admin';
+      }
+    }
+    return 'clinical';
+  });
+
+  const switchToAdminPortal = useCallback(() => {
+    setPortalMode('admin');
+    if (typeof window !== 'undefined' && window.history.pushState) {
+      const url = new URL(window.location.href);
+      url.searchParams.set('portal', 'admin');
+      window.history.pushState({}, '', url.pathname + '?' + url.searchParams.toString());
+    }
+  }, []);
+
+  const switchToClinicalPortal = useCallback(() => {
+    setPortalMode('clinical');
+    if (typeof window !== 'undefined' && window.history.pushState) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('portal');
+      window.history.pushState({}, '', url.pathname + (url.search ? '?' + url.searchParams.toString() : ''));
+    }
+  }, []);
+
+  const [activeTab, setActiveTab] = useState<'doctor' | 'nurse' | 'medication' | 'ai' | 'simulator' | 'audit' | 'settings'>('doctor');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isGoogleSheetsOpen, setIsGoogleSheetsOpen] = useState(false);
+  const [isGmailDispatcherOpen, setIsGmailDispatcherOpen] = useState(false);
+  const [gmailPrefillAlert, setGmailPrefillAlert] = useState<Alert | null>(null);
+  const [gmailPrefillDoctor, setGmailPrefillDoctor] = useState<Doctor | null>(null);
   const [isAiDrawerOpen, setIsAiDrawerOpen] = useState(false);
   const [aiDrawerPatientId, setAiDrawerPatientId] = useState<string>('');
   const [aiDrawerRole, setAiDrawerRole] = useState<AiConsultationRole>('clinical_doctor');
@@ -59,12 +108,36 @@ export default function App() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [hasNotificationPermission, setHasNotificationPermission] = useState(false);
 
+  const handleOpenGmailDispatcher = (alert?: Alert, doctor?: Doctor) => {
+    setGmailPrefillAlert(alert || null);
+    setGmailPrefillDoctor(doctor || null);
+    setIsGmailDispatcherOpen(true);
+  };
+
   const openAiConsultation = (patientId?: string, role: AiConsultationRole = 'clinical_doctor') => {
     if (patientId) {
       setAiDrawerPatientId(patientId);
     }
     setAiDrawerRole(role);
     setIsAiDrawerOpen(true);
+  };
+
+  const handleStaffImportedFromSheets = async (importedStaff: Doctor[]) => {
+    try {
+      const res = await fetch('/api/doctors/bulk-import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ importedStaff }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.doctors) {
+          setDoctors(data.doctors);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to import staff to backend:', e);
+    }
   };
 
   const [alerts, setAlerts] = useState<Alert[]>([]);
@@ -179,11 +252,15 @@ export default function App() {
             return [msg.alert, ...prev];
           });
 
-          // Play Sound & Siren
+          // Play Sound, Siren, Instant Voice Announcement & Mobile Haptic Vibration
           if (soundEnabled) {
             playDoctorAlertChime();
             startNurseStationSiren();
+            speakRedAlertAnnouncement(msg.alert, language);
           }
+
+          // Trigger continuous mobile haptic emergency pulses
+          triggerRedAlertVibration(true);
 
           // Trigger Desktop Push Notification
           sendDesktopAlertNotification({
@@ -198,7 +275,17 @@ export default function App() {
           setAlerts((prev) => prev.map((a) => (a.id === msg.alert.id ? msg.alert : a)));
           if (soundEnabled) {
             playDoctorAlertChime();
+            speakRedAlertAnnouncement(
+              {
+                ...msg.alert,
+                reason: language === 'vi' ? 'Chuyển bác sĩ dự phòng' : 'Backup escalated',
+              },
+              language
+            );
           }
+          // Escalation heavy haptic pulse
+          triggerEscalationVibration();
+
           sendDesktopAlertNotification({
             title: `[ESCALATED] CHUYỂN BS DỰ PHÒNG`,
             body: `Cảnh báo phòng ${msg.alert.roomNumber} đã tự động chuyển cho ${msg.backupDoctorName || 'BS Dự phòng'}!`,
@@ -212,12 +299,16 @@ export default function App() {
           if (soundEnabled) {
             playAcknowledgeChime();
           }
-          // Stop siren if no other pending alerts
+          triggerAcknowledgeHaptic();
+
+          // Stop siren, voice, and vibration if no other pending alerts
           setTimeout(() => {
             setAlerts((current) => {
               const hasPending = current.some((a) => a.status === 'Pending');
               if (!hasPending) {
                 stopNurseStationSiren();
+                stopVoiceAnnouncement();
+                stopHapticVibration();
               }
               return current;
             });
@@ -226,6 +317,17 @@ export default function App() {
 
         case 'ALERT_RESOLVED':
           setAlerts((prev) => prev.map((a) => (a.id === msg.alert.id ? msg.alert : a)));
+          setTimeout(() => {
+            setAlerts((current) => {
+              const hasPending = current.some((a) => a.status === 'Pending');
+              if (!hasPending) {
+                stopNurseStationSiren();
+                stopVoiceAnnouncement();
+                stopHapticVibration();
+              }
+              return current;
+            });
+          }, 100);
           break;
 
         case 'NEW_VITAL':
@@ -532,6 +634,28 @@ export default function App() {
     isBackup: false,
   };
 
+  if (portalMode === 'admin') {
+    return (
+      <>
+        <AdminStaffPortal
+          doctors={doctors}
+          alerts={alerts}
+          onStaffUpdated={fetchInitialData}
+          onSwitchToClinical={switchToClinicalPortal}
+          onOpenGoogleSheets={() => setIsGoogleSheetsOpen(true)}
+        />
+        <GoogleSheetsSyncModal
+          isOpen={isGoogleSheetsOpen}
+          onClose={() => setIsGoogleSheetsOpen(false)}
+          doctors={doctors}
+          alerts={alerts}
+          medications={medications}
+          onStaffImported={handleStaffImportedFromSheets}
+        />
+      </>
+    );
+  }
+
   return (
     <div
       className={`min-h-screen flex flex-col font-sans transition-colors duration-200 selection:bg-red-500 selection:text-white ${
@@ -549,9 +673,85 @@ export default function App() {
           }
         }}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenGoogleSheets={() => setIsGoogleSheetsOpen(true)}
+        onOpenGmail={() => handleOpenGmailDispatcher()}
         isConnected={isConnected}
         pendingAlertsCount={pendingAlertsCount}
       />
+
+      {/* Emergency Red Alert Voice Broadcast Header Banner */}
+      {pendingAlertsCount > 0 && (
+        <div className="bg-red-600 border-b border-red-700 text-white shadow-lg shadow-red-950/40 sticky top-16 z-30 animate-pulse">
+          <div className="max-w-7xl mx-auto px-4 py-2.5 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center shrink-0 animate-bounce">
+                <ShieldAlert className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <div className="font-black text-sm tracking-wide flex items-center gap-2">
+                  <span>🚨 {language === 'vi' ? 'BÁO ĐỘNG ĐỎ CẤP CỨU ĐANG KÍCH HOẠT!' : 'CODE RED EMERGENCY ACTIVE!'}</span>
+                  <span className="px-2 py-0.2 bg-black/40 rounded-full text-xs font-mono font-bold">
+                    {pendingAlertsCount} {language === 'vi' ? 'ca' : 'cases'}
+                  </span>
+                </div>
+                {alerts.find((a) => a.status === 'Pending') && (
+                  <div className="text-xs text-red-100 font-medium">
+                    {alerts.find((a) => a.status === 'Pending')?.roomNumber && (
+                      <span className="font-bold mr-1.5">
+                        Phòng {alerts.find((a) => a.status === 'Pending')?.roomNumber}:
+                      </span>
+                    )}
+                    {alerts.find((a) => a.status === 'Pending')?.patientName} —{' '}
+                    {alerts.find((a) => a.status === 'Pending')?.reason} (
+                    {alerts.find((a) => a.status === 'Pending')?.heartRate} BPM)
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+              <button
+                id="btn-broadcast-voice-global"
+                onClick={() => {
+                  const firstPending = alerts.find((a) => a.status === 'Pending');
+                  if (firstPending) {
+                    speakRedAlertAnnouncement(firstPending, language);
+                  }
+                }}
+                className="px-3 py-1.5 bg-white text-red-700 hover:bg-red-50 active:scale-95 text-xs font-black rounded-lg shadow transition-all flex items-center gap-1.5 cursor-pointer"
+                title={language === 'vi' ? 'Phát loa thông báo khẩn cấp bằng giọng nói' : 'Broadcast emergency voice announcement'}
+              >
+                <Volume2 className="w-4 h-4 text-red-600" />
+                <span>{language === 'vi' ? 'Phát thông báo giọng nói' : 'Voice Announce'}</span>
+              </button>
+
+              <button
+                id="btn-silence-alarm-global"
+                onClick={() => {
+                  stopNurseStationSiren();
+                  stopVoiceAnnouncement();
+                  stopHapticVibration();
+                }}
+                className="px-2.5 py-1.5 bg-red-800/80 hover:bg-red-900 text-white text-xs font-bold rounded-lg border border-red-400/40 transition-colors flex items-center gap-1 cursor-pointer"
+                title={language === 'vi' ? 'Tắt còi, dừng thông báo và ngắt rung' : 'Silence Siren, Voice and Vibration'}
+              >
+                <VolumeX className="w-3.5 h-3.5" />
+                <span>{language === 'vi' ? 'Tắt còi & Rung' : 'Mute & Stop Vibration'}</span>
+              </button>
+
+              {activeTab !== 'doctor' && (
+                <button
+                  id="btn-goto-doctor-alerts"
+                  onClick={() => setActiveTab('doctor')}
+                  className="px-3 py-1.5 bg-black/40 hover:bg-black/60 text-white text-xs font-bold rounded-lg transition-colors cursor-pointer"
+                >
+                  {language === 'vi' ? 'Xử lý ngay →' : 'Handle Now →'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Content Body */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
@@ -570,6 +770,7 @@ export default function App() {
             doctors={doctors}
             selectedDoctorId={selectedDoctorId}
             setSelectedDoctorId={setSelectedDoctorId}
+            onOpenGmail={handleOpenGmailDispatcher}
           />
         )}
 
@@ -597,6 +798,7 @@ export default function App() {
             onHoldMedication={handleHoldMedication}
             onCreateMedication={handleCreateMedication}
             onDeleteMedication={handleDeleteMedication}
+            onOpenGoogleSheets={() => setIsGoogleSheetsOpen(true)}
           />
         )}
 
@@ -621,13 +823,10 @@ export default function App() {
         )}
 
         {activeTab === 'audit' && (
-          <AlertAuditHistory alerts={alerts} stats={stats} />
-        )}
-
-        {activeTab === 'admin' && (
-          <PersonnelAdmin
-            doctors={doctors}
-            onStaffUpdated={fetchInitialData}
+          <AlertAuditHistory
+            alerts={alerts}
+            stats={stats}
+            onOpenGoogleSheets={() => setIsGoogleSheetsOpen(true)}
           />
         )}
       </main>
@@ -643,7 +842,8 @@ export default function App() {
           setIsSettingsOpen(false);
         }}
         onNavigateToStaffAdmin={() => {
-          setActiveTab('admin');
+          setIsSettingsOpen(false);
+          switchToAdminPortal();
         }}
         soundEnabled={soundEnabled}
         setSoundEnabled={setSoundEnabled}
@@ -652,6 +852,32 @@ export default function App() {
         doctors={doctors}
         selectedDoctorId={selectedDoctorId}
         setSelectedDoctorId={setSelectedDoctorId}
+        onOpenGmail={() => handleOpenGmailDispatcher()}
+      />
+
+      {/* Google Sheets Synchronization Modal */}
+      <GoogleSheetsSyncModal
+        isOpen={isGoogleSheetsOpen}
+        onClose={() => setIsGoogleSheetsOpen(false)}
+        doctors={doctors}
+        alerts={alerts}
+        medications={medications}
+        onStaffImported={handleStaffImportedFromSheets}
+      />
+
+      {/* Gmail Emergency & Clinical Dispatcher Modal */}
+      <GmailDispatcherModal
+        isOpen={isGmailDispatcherOpen}
+        onClose={() => {
+          setIsGmailDispatcherOpen(false);
+          setGmailPrefillAlert(null);
+          setGmailPrefillDoctor(null);
+        }}
+        doctors={doctors}
+        alerts={alerts}
+        medications={medications}
+        prefilledAlert={gmailPrefillAlert}
+        prefilledDoctor={gmailPrefillDoctor}
       />
 
       {/* Floating Quick AI Clinical Assistant Button (Available on all tabs) */}

@@ -54,58 +54,136 @@ let patients: Patient[] = [...initialPatients];
 const initialDoctors: Doctor[] = [
   {
     id: 'DOC01',
+    employeeCode: 'NV-BS01',
     name: 'BS. CKII. Nguyễn Quốc Trí',
-    role: 'Trưởng Ca Trực ICU',
+    role: 'Trưởng Khoa & Bác Sĩ Trực ICU',
     department: 'Hồi Sức Cấp Cứu (ICU)',
+    specialty: 'Hồi sức Tim Mạch & Đột quỵ',
+    licenseNumber: '002145/BYT-CCHN',
+    experienceYears: 16,
     phone: '0912-345-678',
     email: 'tri.nguyen@hospital.vn',
     isOnCall: true,
     isBackup: false,
-    shift: '24h',
+    shift: 'Ca 24h',
+    assignedZone: 'ICU Khu A (Giường P101 - P103)',
+    emergencyContact: '0912-888-999 (Vợ)',
+    certifications: ['ACLS AHA', 'BLS', 'CCRN', 'Thở Máy Nâng Cao'],
+    notes: 'Bác sĩ chuyên gia hồi sức tuần hoàn, trực tiếp chỉ đạo ca cấp cứu ngưng tim ngưng thở.',
   },
   {
     id: 'DOC02',
+    employeeCode: 'NV-BS02',
     name: 'ThS. BS. Phạm Thu Trang',
-    role: 'Bác Sĩ Tim Mạch',
+    role: 'Bác Sĩ Tim Mạch Can Thiệp',
     department: 'Tim Mạch Can Thiệp',
+    specialty: 'Can thiệp Mạch Vành & Loạn Nhịp',
+    licenseNumber: '003891/BYT-CCHN',
+    experienceYears: 11,
     phone: '0988-123-456',
     email: 'trang.pham@hospital.vn',
     isOnCall: true,
     isBackup: false,
-    shift: 'Ca Ngày',
+    shift: 'Ca Ngày (07:00 - 15:00)',
+    assignedZone: 'Phòng Can Thiệp DSA & ICU Tim',
+    emergencyContact: '0988-555-444 (Chồng)',
+    certifications: ['ACLS AHA', 'Can Thiệp Mạch Vành Cấp Cứu', 'Siêu Âm Tim Cấp Cứu'],
+    notes: 'Phụ trách can thiệp đặt stent cấp cứu và xử trí shock tim.',
   },
   {
     id: 'DOC03',
+    employeeCode: 'NV-BS03',
     name: 'BS. CKI. Lê Hải Đăng',
-    role: 'Bác Sĩ Dự Phòng Cấp Cứu',
+    role: 'Bác Sĩ Cấp Cứu Ngoại Viện',
     department: 'Cấp Cứu Ngoại Viện',
+    specialty: 'Hồi sức Cấp cứu & Chấn thương',
+    licenseNumber: '005612/BYT-CCHN',
+    experienceYears: 8,
     phone: '0903-888-999',
     email: 'dang.le@hospital.vn',
     isOnCall: false,
     isBackup: true,
-    shift: 'Ca Đêm',
+    shift: 'Ca Đêm (23:00 - 07:00)',
+    assignedZone: 'Đội Xe Cấp Cứu 115 & Phòng Lưu',
+    emergencyContact: '0903-111-222 (Mẹ)',
+    certifications: ['ATLS', 'ACLS', 'Cấp Cứu Đa Chấn Thương'],
+    notes: 'Bác sĩ trực dự phòng leo thang cấp cứu 24/7.',
   },
   {
     id: 'DOC04',
+    employeeCode: 'NV-BS04',
     name: 'BS. Vũ Đức Anh',
-    role: 'Bác Sĩ Nội Khoa',
+    role: 'Bác Sĩ Nội Tim Mạch',
     department: 'Nội Tim Mạch Tổng Quát',
+    specialty: 'Suy tim & Bệnh lý van tim',
+    licenseNumber: '007823/BYT-CCHN',
+    experienceYears: 6,
     phone: '0977-555-111',
     email: 'anh.vu@hospital.vn',
     isOnCall: false,
     isBackup: true,
-    shift: '24h',
+    shift: 'Ca 24h',
+    assignedZone: 'Khoa Nội Tim Mạch Lầu 3',
+    emergencyContact: '0977-666-888',
+    certifications: ['BLS', 'ACLS', 'Điện Tâm Đồ Nâng Cao'],
+    notes: 'Trực hỗ trợ tư vấn chuyên khoa nội tim mạch.',
   },
   {
     id: 'NUR01',
+    employeeCode: 'NV-DD01',
     name: 'ĐD. Đặng Thị Hồng Hạnh',
-    role: 'Điều Dưỡng Trưởng Trạm',
+    role: 'Điều Dưỡng Trưởng Trạm ICU',
     department: 'Trạm Y Tá ICU Trung Tâm',
+    specialty: 'Chăm sóc Hồi sức Tích cực',
+    licenseNumber: '009102/BYT-CCHN',
+    experienceYears: 12,
     phone: '0934-222-333',
     email: 'hanh.dang@hospital.vn',
     isOnCall: true,
     isBackup: false,
-    shift: 'Ca Ngày',
+    shift: 'Ca Ngày (07:00 - 15:00)',
+    assignedZone: 'Trạm Điều Dưỡng Trung Tâm ICU',
+    emergencyContact: '0934-999-111',
+    certifications: ['ACLS', 'BLS', 'Chăm Sóc BN Thở Máy & Dẫn Lưu'],
+    notes: 'Điều dưỡng trưởng phụ trách phân ca, quản lý tủ thuốc trực và duyệt MAR.',
+  },
+  {
+    id: 'NUR02',
+    employeeCode: 'NV-DD02',
+    name: 'ĐD. Trần Minh Quang',
+    role: 'Điều Dưỡng Hồi Sức Cấp Cứu',
+    department: 'Trạm Y Tá ICU Trung Tâm',
+    specialty: 'Hồi sức Ngoại khoa & Telemetry',
+    licenseNumber: '009450/BYT-CCHN',
+    experienceYears: 7,
+    phone: '0945-678-123',
+    email: 'quang.tran@hospital.vn',
+    isOnCall: true,
+    isBackup: false,
+    shift: 'Ca Chiều (15:00 - 23:00)',
+    assignedZone: 'ICU Khu B (Giường P201 - P308)',
+    emergencyContact: '0945-888-222',
+    certifications: ['BLS', 'Chăm Sóc Catheter Tĩnh Mạch Trung Tâm'],
+    notes: 'Thực hiện tiêm truyền, theo dõi monitor ECG và báo động khẩn cấp.',
+  },
+  {
+    id: 'DOC05',
+    employeeCode: 'NV-BS05',
+    name: 'BS. CKII. Hoàng Minh Đức',
+    role: 'Bác Sĩ Gây Mê Hồi Sức',
+    department: 'Gây Mê Hồi Sức',
+    specialty: 'Gây mê Phẫu thuật Tim & Hồi tỉnh',
+    licenseNumber: '001980/BYT-CCHN',
+    experienceYears: 18,
+    phone: '0966-777-888',
+    email: 'duc.hoang@hospital.vn',
+    isOnCall: false,
+    isBackup: true,
+    shift: 'Ca 24h',
+    assignedZone: 'Khu Phẫu Thuật Tim & Hồi Tỉnh',
+    emergencyContact: '0966-000-111',
+    certifications: ['ACLS', 'Đặt Nội Khí Quản Khó', 'ECMO'],
+    notes: 'Chuyên gia hồi sức hô hấp và kiểm soát đường thở khó.',
   },
 ];
 
@@ -740,21 +818,46 @@ app.get('/api/doctors', (req, res) => {
 });
 
 app.post('/api/doctors', (req, res) => {
-  const { name, role, department, phone, email, isOnCall, isBackup, shift } = req.body;
+  const {
+    name,
+    role,
+    department,
+    phone,
+    email,
+    isOnCall,
+    isBackup,
+    shift,
+    employeeCode,
+    specialty,
+    licenseNumber,
+    experienceYears,
+    emergencyContact,
+    certifications,
+    assignedZone,
+    notes,
+  } = req.body;
   if (!name || !department) {
     res.status(400).json({ error: 'Name and department are required' });
     return;
   }
   const newStaff: Doctor = {
     id: `DOC-${Date.now().toString(36).toUpperCase()}`,
+    employeeCode: employeeCode || `NV-${Math.floor(1000 + Math.random() * 9000)}`,
     name,
     role: role || 'Bác Sĩ Trực',
     department,
+    specialty: specialty || 'Hồi sức Cấp cứu',
+    licenseNumber: licenseNumber || `${Math.floor(100000 + Math.random() * 900000)}/BYT-CCHN`,
+    experienceYears: experienceYears !== undefined ? Number(experienceYears) : 5,
     phone: phone || '0900-000-000',
     email: email || '',
     isOnCall: isOnCall !== undefined ? !!isOnCall : true,
     isBackup: isBackup !== undefined ? !!isBackup : false,
-    shift: shift || '24h',
+    shift: shift || 'Ca 24h',
+    assignedZone: assignedZone || 'Khu Cấp Cứu Tổng Hợp',
+    emergencyContact: emergencyContact || '',
+    certifications: Array.isArray(certifications) ? certifications : ['ACLS', 'BLS'],
+    notes: notes || '',
   };
   doctors.push(newStaff);
   broadcast({ type: 'DOCTORS_UPDATED', doctors: [...doctors] });
@@ -782,6 +885,48 @@ app.delete('/api/doctors/:id', (req, res) => {
   doctors = doctors.filter((d) => d.id !== id);
   broadcast({ type: 'DOCTORS_UPDATED', doctors: [...doctors] });
   res.json({ success: true, message: 'Deleted staff member', id });
+});
+
+app.post('/api/doctors/bulk-import', (req, res) => {
+  const { importedStaff } = req.body;
+  if (!Array.isArray(importedStaff) || importedStaff.length === 0) {
+    res.status(400).json({ error: 'Danh sách nhân viên không hợp lệ' });
+    return;
+  }
+
+  // Merge or replace
+  const updatedList = [...doctors];
+  for (const staff of importedStaff) {
+    if (!staff.name) continue;
+    const existingIndex = updatedList.findIndex((d) => d.id === staff.id || d.name === staff.name || (staff.employeeCode && d.employeeCode === staff.employeeCode));
+    if (existingIndex >= 0) {
+      updatedList[existingIndex] = { ...updatedList[existingIndex], ...staff };
+    } else {
+      updatedList.push({
+        id: staff.id || `DOC-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        employeeCode: staff.employeeCode || `NV-${Math.floor(100 + Math.random() * 900)}`,
+        name: staff.name,
+        role: staff.role || 'Bác Sĩ Trực Ca',
+        department: staff.department || 'Hồi Sức Cấp Cứu (ICU)',
+        specialty: staff.specialty || 'Hồi sức cấp cứu',
+        licenseNumber: staff.licenseNumber || `${Math.floor(100000 + Math.random() * 900000)}/BYT-CCHN`,
+        experienceYears: staff.experienceYears || 5,
+        phone: staff.phone || '0900-000-000',
+        email: staff.email || '',
+        isOnCall: staff.isOnCall !== undefined ? !!staff.isOnCall : true,
+        isBackup: staff.isBackup !== undefined ? !!staff.isBackup : false,
+        shift: staff.shift || 'Ca 24h',
+        assignedZone: staff.assignedZone || 'Khu Cấp Cứu',
+        emergencyContact: staff.emergencyContact || '',
+        certifications: staff.certifications || ['ACLS', 'BLS'],
+        notes: staff.notes || 'Đã nhập từ Google Sheets',
+      });
+    }
+  }
+
+  doctors = updatedList;
+  broadcast({ type: 'DOCTORS_UPDATED', doctors: [...doctors] });
+  res.json({ success: true, count: doctors.length, doctors });
 });
 
 app.put('/api/doctors/:id/toggle-oncall', (req, res) => {

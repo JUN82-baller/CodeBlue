@@ -5,7 +5,7 @@ let sirenInterval: number | null = null;
 let sirenOscillator: OscillatorNode | null = null;
 let sirenGain: GainNode | null = null;
 
-function getAudioContext(): AudioContext {
+export function getAudioContext(): AudioContext {
   if (!audioCtx) {
     const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     audioCtx = new AudioContextClass();

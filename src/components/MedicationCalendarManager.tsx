@@ -29,6 +29,7 @@ import {
   Eye,
   X,
   Printer,
+  FileSpreadsheet,
 } from 'lucide-react';
 import {
   Doctor,
@@ -70,6 +71,7 @@ interface MedicationCalendarManagerProps {
   onHoldMedication: (id: string, reason: string, heldBy: string) => Promise<void>;
   onCreateMedication: (data: Partial<MedicationSchedule>) => Promise<void>;
   onDeleteMedication: (id: string) => Promise<void>;
+  onOpenGoogleSheets?: () => void;
 }
 
 // Preset ICU medications for quick prescribing
@@ -94,6 +96,7 @@ export const MedicationCalendarManager: React.FC<MedicationCalendarManagerProps>
   onHoldMedication,
   onCreateMedication,
   onDeleteMedication,
+  onOpenGoogleSheets,
 }) => {
   const { t, language } = useLanguage();
   const { theme } = useTheme();
@@ -712,6 +715,22 @@ export const MedicationCalendarManager: React.FC<MedicationCalendarManagerProps>
                   <RefreshCw className={`w-3.5 h-3.5 ${isSyncingAll ? 'animate-spin' : ''}`} />
                   <span>{isSyncingAll ? 'Đang đồng bộ...' : t.btnSyncAllToGoogleCalendar}</span>
                 </button>
+
+                {onOpenGoogleSheets && (
+                  <button
+                    id="btn-med-google-sheets-sync"
+                    onClick={onOpenGoogleSheets}
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black border transition-all cursor-pointer ${
+                      isDark
+                        ? 'bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-400 border-emerald-500/30'
+                        : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-300'
+                    }`}
+                    title="Đồng bộ y lệnh thuốc lên Google Sheets"
+                  >
+                    <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>Google Sheets</span>
+                  </button>
+                )}
 
                 <button
                   id="btn-add-medication-open"

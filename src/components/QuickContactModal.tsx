@@ -22,6 +22,7 @@ import {
   Zap,
   Activity,
   ShieldAlert,
+  Mail,
 } from 'lucide-react';
 import { Alert, Doctor, Patient } from '../types';
 import { useLanguage } from '../context/LanguageContext';
@@ -44,6 +45,7 @@ interface QuickContactModalProps {
   patients: Patient[];
   doctors: Doctor[];
   initialMode?: 'call' | 'message';
+  onOpenGmail?: (alert: Alert) => void;
 }
 
 interface ChatMessage {
@@ -71,6 +73,7 @@ export const QuickContactModal: React.FC<QuickContactModalProps> = ({
   patients,
   doctors,
   initialMode = 'call',
+  onOpenGmail,
 }) => {
   const { t, language } = useLanguage();
   const { theme } = useTheme();
@@ -544,6 +547,25 @@ export const QuickContactModal: React.FC<QuickContactModalProps> = ({
               {messages.length}
             </span>
           </button>
+
+          {onOpenGmail && (
+            <button
+              id="btn-quick-contact-gmail"
+              onClick={() => {
+                onClose();
+                onOpenGmail(alert);
+              }}
+              className={`ml-auto my-auto flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                isDark
+                  ? 'bg-rose-950/40 hover:bg-rose-900/60 text-rose-400 border border-rose-500/30'
+                  : 'bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200'
+              }`}
+              title={language === 'vi' ? 'Gửi email Gmail cảnh báo khẩn cấp' : 'Dispatch Emergency Gmail Alert'}
+            >
+              <Mail className="w-3.5 h-3.5 text-rose-500" />
+              <span>Gmail Dispatch</span>
+            </button>
+          )}
         </div>
 
         {/* RECIPIENT SELECTOR BAR */}

@@ -23,6 +23,45 @@ export interface Doctor {
   shift?: string;
   connectionId?: string;
   activeGroup?: string;
+  employeeCode?: string;
+  specialty?: string;
+  licenseNumber?: string; // Số CCHN
+  experienceYears?: number;
+  joinDate?: string;
+  emergencyContact?: string;
+  certifications?: string[];
+  assignedZone?: string;
+  notes?: string;
+}
+
+export interface StaffShiftSchedule {
+  id: string;
+  staffId: string;
+  staffName: string;
+  department: string;
+  role: string;
+  dayOfWeek: number; // 0 (CN) to 6 (Thứ 7)
+  date: string; // YYYY-MM-DD
+  shiftType: 'MORNING' | 'AFTERNOON' | 'NIGHT' | '24H' | 'OFF';
+  shiftName: string;
+  startTime: string;
+  endTime: string;
+  zone: string;
+  isOnCallLead: boolean;
+  status: 'SCHEDULED' | 'CHECKED_IN' | 'COMPLETED' | 'SWAPPED';
+  notes?: string;
+}
+
+export interface StaffCertification {
+  id: string;
+  staffId: string;
+  staffName: string;
+  name: string; // e.g. "ACLS - Cấp Cứu Tim Mạch Nâng Cao"
+  issuingBody: string; // e.g. "Hiệp hội Tim mạch Hoa Kỳ (AHA)"
+  issueDate: string;
+  expiryDate: string;
+  status: 'VALID' | 'EXPIRING_SOON' | 'EXPIRED';
+  certNumber: string;
 }
 
 export interface VitalReading {

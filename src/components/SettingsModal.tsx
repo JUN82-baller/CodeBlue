@@ -8,18 +8,22 @@ import {
   RotateCcw,
   Save,
   Sliders,
+  Smartphone,
   Stethoscope,
   Sun,
   Users,
+  Vibrate,
   Volume2,
   VolumeX,
   X,
   Zap,
+  Mail,
 } from 'lucide-react';
 import { Doctor, SystemSettings } from '../types';
 import { useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
 import { playDoctorAlertChime } from '../services/sound';
+import { isHapticSupported, testHapticFeedback } from '../services/haptic';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -35,6 +39,7 @@ interface SettingsModalProps {
   doctors?: Doctor[];
   selectedDoctorId?: string;
   setSelectedDoctorId?: (id: string) => void;
+  onOpenGmail?: () => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -51,6 +56,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   doctors = [],
   selectedDoctorId,
   setSelectedDoctorId,
+  onOpenGmail,
 }) => {
   const { t, language, setLanguage } = useLanguage();
   const { theme, setTheme } = useTheme();
@@ -378,6 +384,113 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 ) : null}
               </div>
 
+              {/* Mobile Haptic Vibration Alert Section */}
+              <div
+                className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 ${
+                  isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+                      isHapticSupported()
+                        ? 'bg-purple-500/20 text-purple-400'
+                        : 'bg-slate-500/20 text-slate-400'
+                    }`}
+                  >
+                    <Vibrate className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className={`font-bold text-xs flex items-center gap-1.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      <span>{language === 'vi' ? 'Rung cảnh báo di động (Haptic Feedback)' : 'Mobile Haptic Vibration Alert'}</span>
+                      {isHapticSupported() ? (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold">
+                          {language === 'vi' ? 'Khả dụng' : 'Supported'}
+                        </span>
+                      ) : (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-500/20 text-slate-400 font-bold">
+                          {language === 'vi' ? 'Chỉ trên thiết bị di động' : 'Mobile Only'}
+                        </span>
+                      )}
+                    </div>
+                    <div className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                      {language === 'vi'
+                        ? 'Tự động rung theo nhịp khẩn cấp khi có báo động đỏ ICU đến trình duyệt di động'
+                        : 'Vibrates in urgent rhythm when a Code Red alert is received on mobile'}
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  id="btn-settings-test-haptic"
+                  onClick={() => {
+                    const ok = testHapticFeedback();
+                    if (!ok) {
+                      alert(
+                        language === 'vi'
+                          ? 'Trình duyệt/thiết bị này không hỗ trợ rung trực tiếp hoặc đang ở chế độ PC. Rung hoạt động tối ưu trên Chrome/Android & Safari/iOS hỗ trợ.'
+                          : 'Vibration API is active for supported mobile devices.'
+                      );
+                    }
+                  }}
+                  className={`px-2.5 py-1.5 rounded-xl border text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                    isDark
+                      ? 'bg-slate-900 border-slate-700 text-purple-300 hover:bg-slate-800'
+                      : 'bg-white border-slate-300 text-purple-700 hover:bg-purple-50'
+                  }`}
+                  title={language === 'vi' ? 'Thử hiệu ứng rung khẩn cấp' : 'Test emergency vibration'}
+                >
+                  <Smartphone className="w-3 h-3 text-purple-500" />
+                  <span>{language === 'vi' ? 'Thử rung' : 'Test Vibration'}</span>
+                </button>
+              </div>
+
+              {/* Gmail Workspace Integration Section */}
+              <div
+                className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 ${
+                  isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center">
+                    <Mail className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className={`font-bold text-xs flex items-center gap-1.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      <span>{language === 'vi' ? 'Tích hợp Google Workspace (Gmail)' : 'Google Workspace Gmail Dispatcher'}</span>
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-400 font-bold">
+                        OAuth 2.0
+                      </span>
+                    </div>
+                    <div className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                      {language === 'vi'
+                        ? 'Gửi cảnh báo đỏ, y lệnh thuốc và bàn giao ca trực trực tiếp qua Gmail'
+                        : 'Send emergency alerts, prescriptions, and handoffs directly via Gmail'}
+                    </div>
+                  </div>
+                </div>
+
+                {onOpenGmail && (
+                  <button
+                    type="button"
+                    id="btn-settings-open-gmail"
+                    onClick={() => {
+                      onClose();
+                      onOpenGmail();
+                    }}
+                    className={`px-2.5 py-1.5 rounded-xl border text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                      isDark
+                        ? 'bg-rose-950/40 border-rose-800 text-rose-300 hover:bg-rose-900/60'
+                        : 'bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100'
+                    }`}
+                  >
+                    <Mail className="w-3 h-3 text-rose-500" />
+                    <span>{language === 'vi' ? 'Mở Gmail' : 'Open Gmail'}</span>
+                  </button>
+                )}
+              </div>
+
               {/* Duty Doctor Switcher (If multiple doctors) */}
               {doctors.length > 0 && selectedDoctorId && setSelectedDoctorId && (
                 <div
@@ -424,37 +537,45 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
               )}
 
-              {/* Quick Link to Personnel Admin */}
+              {/* Dedicated Hospital Medical HR & Admin Portal Entry */}
               {onNavigateToStaffAdmin && (
                 <div
-                  className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 ${
-                    isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'
+                  className={`p-4 rounded-2xl border flex items-center justify-between gap-3 ${
+                    isDark
+                      ? 'bg-gradient-to-r from-slate-950 via-slate-900 to-amber-950/20 border-amber-500/30'
+                      : 'bg-gradient-to-r from-slate-50 via-white to-amber-50/50 border-amber-300/80'
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center">
-                      <Users className="w-4 h-4" />
+                    <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-600 text-white flex items-center justify-center shadow-md shadow-orange-900/20">
+                      <Users className="w-5 h-5" />
                     </div>
                     <div>
-                      <div className={`font-bold text-xs ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                        {t.tabPersonnelAdmin}
+                      <div className="flex items-center gap-2">
+                        <span className={`font-black text-xs ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                          {language === 'vi' ? 'Cổng Quản Trị Nhân Sự Y Tế (Admin Portal)' : 'Hospital Medical HR & Admin Portal'}
+                        </span>
+                        <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-500 border border-amber-500/30">
+                          Admin
+                        </span>
                       </div>
-                      <div className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                      <div className={`text-[10px] mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                         {language === 'vi'
-                          ? 'Quản lý bác sĩ, điều dưỡng trực ca và danh bạ'
-                          : 'Manage hospital doctors, nurses & duty rosters'}
+                          ? 'Quản lý hồ sơ bác sĩ, điều dưỡng, lịch trực 24/7, CCHN & bảo mật PIN'
+                          : 'Manage physician profiles, 24/7 rosters, credentials & PIN lock'}
                       </div>
                     </div>
                   </div>
                   <button
                     type="button"
+                    id="btn-settings-open-admin-portal"
                     onClick={() => {
                       onClose();
                       onNavigateToStaffAdmin();
                     }}
-                    className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-bold text-xs transition-colors cursor-pointer"
+                    className="px-3.5 py-2 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-slate-950 font-black rounded-xl text-xs transition-all shadow-md cursor-pointer whitespace-nowrap shrink-0"
                   >
-                    {language === 'vi' ? 'Mở Quản Lý' : 'Open Admin'}
+                    {language === 'vi' ? 'Mở Cổng Admin' : 'Open Admin Portal'}
                   </button>
                 </div>
               )}
