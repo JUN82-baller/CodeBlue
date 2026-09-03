@@ -6,9 +6,31 @@ export interface Patient {
   name: string;
   roomNumber: string;
   age: number;
+  gender?: 'Nam' | 'Nữ' | 'Khác';
   bed: string;
   diagnosis: string;
   primaryDoctorId?: string;
+  admissionDate?: string;
+  notes?: string;
+  initialHeartRate?: number;
+  initialSpO2?: number;
+}
+
+export interface WardBedSlot {
+  id: string; // e.g. "P101-G01"
+  roomNumber: string; // e.g. "P.101"
+  bed: string; // e.g. "G01"
+  department: string;
+  patientId?: string;
+  status: 'occupied' | 'available' | 'cleaning' | 'maintenance';
+  notes?: string;
+}
+
+export interface WardBedStats {
+  totalBeds: number;
+  occupiedBeds: number;
+  availableBeds: number;
+  occupancyRatePercent: number;
 }
 
 export interface Doctor {
@@ -214,7 +236,7 @@ export type WsClientMessage =
 
 export type WsServerMessage =
   | { type: 'CONNECTED'; clientId: string; serverTime: string }
-  | { type: 'INIT_STATE'; alerts: Alert[]; patients: Patient[]; doctors: Doctor[]; settings: SystemSettings; stats: SystemStats; medications?: MedicationSchedule[]; medicationHistory?: MedicationAdministrationRecord[] }
+  | { type: 'INIT_STATE'; alerts: Alert[]; patients: Patient[]; doctors: Doctor[]; settings: SystemSettings; stats: SystemStats; medications?: MedicationSchedule[]; medicationHistory?: MedicationAdministrationRecord[]; beds?: WardBedSlot[] }
   | { type: 'NEW_ALERT'; alert: Alert }
   | { type: 'ALERT_ACKNOWLEDGED'; alert: Alert; acknowledgedBy: string }
   | { type: 'ALERT_RESOLVED'; alert: Alert; resolvedBy: string }
@@ -223,7 +245,8 @@ export type WsServerMessage =
   | { type: 'STATS_UPDATED'; stats: SystemStats }
   | { type: 'DOCTORS_UPDATED'; doctors: Doctor[] }
   | { type: 'PATIENTS_UPDATED'; patients: Patient[] }
+  | { type: 'BEDS_UPDATED'; beds: WardBedSlot[] }
   | { type: 'MEDICATIONS_UPDATED'; medications: MedicationSchedule[] }
   | { type: 'MEDICATION_ADMINISTERED'; medication: MedicationSchedule; logRecord?: MedicationAdministrationRecord }
   | { type: 'MEDICATION_HISTORY_UPDATED'; history: MedicationAdministrationRecord[] }
-  | { type: 'DATA_RESET'; alerts: Alert[]; patients: Patient[]; doctors: Doctor[]; medications?: MedicationSchedule[]; medicationHistory?: MedicationAdministrationRecord[] };
+  | { type: 'DATA_RESET'; alerts: Alert[]; patients: Patient[]; doctors: Doctor[]; medications?: MedicationSchedule[]; medicationHistory?: MedicationAdministrationRecord[]; beds?: WardBedSlot[] };

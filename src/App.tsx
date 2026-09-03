@@ -24,8 +24,10 @@ import {
   SystemSettings,
   SystemStats,
   VitalReading,
+  WardBedSlot,
   WsServerMessage,
 } from './types';
+import { PatientBedModal } from './components/PatientBedModal';
 import { realtimeHub } from './services/websocket';
 import {
   initAudio,
@@ -152,6 +154,86 @@ export default function App() {
   const [recentVitals, setRecentVitals] = useState<Record<string, VitalReading>>({});
   const [recentReadingsList, setRecentReadingsList] = useState<VitalReading[]>([]);
 
+  // Bed & Patient Admission Management State
+  const [beds, setBeds] = useState<WardBedSlot[]>([]);
+  const [isPatientBedModalOpen, setIsPatientBedModalOpen] = useState(false);
+  const [selectedBedForAdmission, setSelectedBedForAdmission] = useState<{ roomNumber: string; bed: string } | null>(null);
+  const [selectedPatientForEdit, setSelectedPatientForEdit] = useState<Patient | null>(null);
+
+  const handleOpenAdmitModal = (
+    bedSlot?: { roomNumber: string; bed: string } | null,
+    patient?: Patient | null
+  ) => {
+    setSelectedBedForAdmission(bedSlot || null);
+    setSelectedPatientForEdit(patient || null);
+    setIsPatientBedModalOpen(true);
+  };
+
+  const handleSavePatient = async (patientData: Partial<Patient>): Promise<boolean> => {
+    try {
+      if (selectedPatientForEdit && selectedPatientForEdit.id) {
+        // Edit existing patient record
+        const res = await fetch(`/api/patients/${selectedPatientForEdit.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(patientData),
+        });
+        if (res.ok) {
+          const updated = await res.json();
+          setPatients((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+        } else {
+          return false;
+        }
+      } else {
+        // Admit new patient to bed
+        const res = await fetch('/api/patients', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(patientData),
+        });
+        if (res.ok) {
+          const created = await res.json();
+          setPatients((prev) => [created, ...prev.filter((p) => p.id !== created.id)]);
+        } else {
+          return false;
+        }
+      }
+
+      // Re-fetch beds to ensure synchronous consistency
+      const bedsRes = await fetch('/api/beds');
+      if (bedsRes.ok) {
+        const bData = await bedsRes.json();
+        if (bData.beds) setBeds(bData.beds);
+      }
+      return true;
+    } catch (err) {
+      console.error('Failed to save patient record:', err);
+      return false;
+    }
+  };
+
+  const handleDischargePatient = async (patientId: string): Promise<boolean> => {
+    try {
+      const res = await fetch(`/api/patients/${patientId}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        setPatients((prev) => prev.filter((p) => p.id !== patientId));
+        // Re-fetch beds
+        const bedsRes = await fetch('/api/beds');
+        if (bedsRes.ok) {
+          const bData = await bedsRes.json();
+          if (bData.beds) setBeds(bData.beds);
+        }
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error('Failed to discharge patient:', err);
+      return false;
+    }
+  };
+
   // Check notification permission on mount
   useEffect(() => {
     if ('Notification' in window) {
@@ -219,10 +301,19 @@ export default function App() {
           setAlerts(msg.alerts || []);
           setPatients(msg.patients || []);
           setDoctors(msg.doctors || []);
+          if (msg.beds) setBeds(msg.beds);
           if (msg.medications) setMedications(msg.medications);
           if (msg.medicationHistory) setMedicationHistory(msg.medicationHistory);
           if (msg.settings) setSettings(msg.settings);
           if (msg.stats) setStats(msg.stats);
+          break;
+
+        case 'PATIENTS_UPDATED':
+          setPatients(msg.patients || []);
+          break;
+
+        case 'BEDS_UPDATED':
+          setBeds(msg.beds || []);
           break;
 
         case 'MEDICATIONS_UPDATED':
@@ -350,6 +441,7 @@ export default function App() {
           setAlerts(msg.alerts);
           setPatients(msg.patients);
           setDoctors(msg.doctors);
+          if (msg.beds) setBeds(msg.beds);
           if (msg.medications) setMedications(msg.medications);
           if (msg.medicationHistory) setMedicationHistory(msg.medicationHistory);
           setRecentVitals({});
@@ -368,13 +460,14 @@ export default function App() {
   // Initial Fetch fallback
   const fetchInitialData = useCallback(async () => {
     try {
-      const [resPatients, resDocs, resAlerts, resSettings, resMeds, resMedHistory] = await Promise.all([
+      const [resPatients, resDocs, resAlerts, resSettings, resMeds, resMedHistory, resBeds] = await Promise.all([
         fetch('/api/patients'),
         fetch('/api/doctors'),
         fetch('/api/alerts'),
         fetch('/api/settings'),
         fetch('/api/medications'),
         fetch('/api/medications-history'),
+        fetch('/api/beds'),
       ]);
       if (resPatients.ok) setPatients(await resPatients.json());
       if (resDocs.ok) {
@@ -388,6 +481,10 @@ export default function App() {
       if (resSettings.ok) setSettings(await resSettings.json());
       if (resMeds.ok) setMedications(await resMeds.json());
       if (resMedHistory && resMedHistory.ok) setMedicationHistory(await resMedHistory.json());
+      if (resBeds && resBeds.ok) {
+        const bedsData = await resBeds.json();
+        if (bedsData.beds) setBeds(bedsData.beds);
+      }
     } catch (err) {
       console.error('Initial data fetch error:', err);
     }
@@ -677,6 +774,9 @@ export default function App() {
         onOpenGmail={() => handleOpenGmailDispatcher()}
         isConnected={isConnected}
         pendingAlertsCount={pendingAlertsCount}
+        availableBedsCount={Math.max(0, (beds.length || 13) - patients.length)}
+        totalBedsCount={beds.length || 13}
+        onOpenBedModal={() => handleOpenAdmitModal()}
       />
 
       {/* Emergency Red Alert Voice Broadcast Header Banner */}
@@ -771,6 +871,7 @@ export default function App() {
             selectedDoctorId={selectedDoctorId}
             setSelectedDoctorId={setSelectedDoctorId}
             onOpenGmail={handleOpenGmailDispatcher}
+            onOpenAdmitModal={handleOpenAdmitModal}
           />
         )}
 
@@ -779,11 +880,13 @@ export default function App() {
             alerts={alerts}
             patients={patients}
             doctors={doctors}
+            beds={beds}
             recentVitals={recentVitals}
             settings={settings}
             soundEnabled={soundEnabled}
             onAcknowledgeAlert={handleAcknowledgeAlert}
             onInjectEmergency={handleInjectEmergency}
+            onOpenAdmitModal={handleOpenAdmitModal}
           />
         )}
 
@@ -863,6 +966,25 @@ export default function App() {
         alerts={alerts}
         medications={medications}
         onStaffImported={handleStaffImportedFromSheets}
+      />
+
+      {/* Patient Admission & Bed Management Modal */}
+      <PatientBedModal
+        isOpen={isPatientBedModalOpen}
+        onClose={() => {
+          setIsPatientBedModalOpen(false);
+          setSelectedBedForAdmission(null);
+          setSelectedPatientForEdit(null);
+        }}
+        beds={beds}
+        patients={patients}
+        doctors={doctors}
+        isDark={isDark}
+        language={language}
+        preselectedBed={selectedBedForAdmission}
+        editingPatient={selectedPatientForEdit}
+        onSavePatient={handleSavePatient}
+        onDischargePatient={handleDischargePatient}
       />
 
       {/* Gmail Emergency & Clinical Dispatcher Modal */}

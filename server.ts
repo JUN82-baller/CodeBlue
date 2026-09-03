@@ -14,6 +14,8 @@ import {
   SystemSettings,
   SystemStats,
   VitalReading,
+  WardBedSlot,
+  WardBedStats,
   WsGroup,
   WsServerMessage,
 } from './src/types';
@@ -41,15 +43,80 @@ function getGeminiClient(): GoogleGenAI {
 
 // In-Memory Database with realistic seed data
 const initialPatients: Patient[] = [
-  { id: 'P101', name: 'Nguyễn Văn Hùng', roomNumber: 'P.101', age: 68, bed: 'G01', diagnosis: 'Suy tim độ III / Tăng huyết áp' },
-  { id: 'P102', name: 'Trần Thị Mai', roomNumber: 'P.102', age: 54, bed: 'G02', diagnosis: 'Hậu phẫu bắc cầu mạch vành' },
-  { id: 'P201', name: 'Lê Hoàng Nam', roomNumber: 'P.201', age: 72, bed: 'G01', diagnosis: 'Rung nhĩ kịch phát / COPD' },
-  { id: 'P203', name: 'Phạm Minh Tuấn', roomNumber: 'P.203', age: 46, bed: 'G03', diagnosis: 'Nhồi máu cơ tim cấp đang theo dõi' },
-  { id: 'P305', name: 'Đoàn Thúy Vy', roomNumber: 'P.305', age: 61, bed: 'G02', diagnosis: 'Viêm cơ tim cấp / Hồi sức tích cực (ICU)' },
-  { id: 'P308', name: 'Vũ Quốc Bảo', roomNumber: 'P.308', age: 39, bed: 'G01', diagnosis: 'Rối loạn nhịp thất sau can thiệp' },
+  { id: 'P101', name: 'Nguyễn Văn Hùng', roomNumber: 'P.101', age: 68, gender: 'Nam', bed: 'G01', diagnosis: 'Suy tim độ III / Tăng huyết áp', primaryDoctorId: 'DOC01', admissionDate: new Date(Date.now() - 3600000 * 48).toISOString() },
+  { id: 'P102', name: 'Trần Thị Mai', roomNumber: 'P.102', age: 54, gender: 'Nữ', bed: 'G02', diagnosis: 'Hậu phẫu bắc cầu mạch vành', primaryDoctorId: 'DOC02', admissionDate: new Date(Date.now() - 3600000 * 36).toISOString() },
+  { id: 'P201', name: 'Lê Hoàng Nam', roomNumber: 'P.201', age: 72, gender: 'Nam', bed: 'G01', diagnosis: 'Rung nhĩ kịch phát / COPD', primaryDoctorId: 'DOC01', admissionDate: new Date(Date.now() - 3600000 * 24).toISOString() },
+  { id: 'P203', name: 'Phạm Minh Tuấn', roomNumber: 'P.203', age: 46, gender: 'Nam', bed: 'G03', diagnosis: 'Nhồi máu cơ tim cấp đang theo dõi', primaryDoctorId: 'DOC02', admissionDate: new Date(Date.now() - 3600000 * 18).toISOString() },
+  { id: 'P305', name: 'Đoàn Thúy Vy', roomNumber: 'P.305', age: 61, gender: 'Nữ', bed: 'G02', diagnosis: 'Viêm cơ tim cấp / Hồi sức tích cực (ICU)', primaryDoctorId: 'DOC03', admissionDate: new Date(Date.now() - 3600000 * 12).toISOString() },
+  { id: 'P308', name: 'Vũ Quốc Bảo', roomNumber: 'P.308', age: 39, gender: 'Nam', bed: 'G01', diagnosis: 'Rối loạn nhịp thất sau can thiệp', primaryDoctorId: 'DOC04', admissionDate: new Date(Date.now() - 3600000 * 6).toISOString() },
 ];
 
 let patients: Patient[] = [...initialPatients];
+
+// Base ward beds definition (13 standard ICU & Ward beds across rooms)
+const baseWardBeds: WardBedSlot[] = [
+  { id: 'P101-G01', roomNumber: 'P.101', bed: 'G01', department: 'Hồi Sức Cấp Cứu (ICU Khu A)', status: 'occupied', patientId: 'P101' },
+  { id: 'P101-G02', roomNumber: 'P.101', bed: 'G02', department: 'Hồi Sức Cấp Cứu (ICU Khu A)', status: 'available' },
+  { id: 'P102-G01', roomNumber: 'P.102', bed: 'G01', department: 'Hồi Sức Cấp Cứu (ICU Khu A)', status: 'available' },
+  { id: 'P102-G02', roomNumber: 'P.102', bed: 'G02', department: 'Hồi Sức Cấp Cứu (ICU Khu A)', status: 'occupied', patientId: 'P102' },
+  { id: 'P201-G01', roomNumber: 'P.201', bed: 'G01', department: 'Hồi Sức Tim Mạch (ICU Khu B)', status: 'occupied', patientId: 'P201' },
+  { id: 'P201-G02', roomNumber: 'P.201', bed: 'G02', department: 'Hồi Sức Tim Mạch (ICU Khu B)', status: 'available' },
+  { id: 'P203-G01', roomNumber: 'P.203', bed: 'G01', department: 'Hồi Sức Can Thiệp Mạch Vành', status: 'available' },
+  { id: 'P203-G02', roomNumber: 'P.203', bed: 'G02', department: 'Hồi Sức Can Thiệp Mạch Vành', status: 'available' },
+  { id: 'P203-G03', roomNumber: 'P.203', bed: 'G03', department: 'Hồi Sức Can Thiệp Mạch Vành', status: 'occupied', patientId: 'P203' },
+  { id: 'P305-G01', roomNumber: 'P.305', bed: 'G01', department: 'Hồi Sức Hô Hấp & Đa Khoa', status: 'available' },
+  { id: 'P305-G02', roomNumber: 'P.305', bed: 'G02', department: 'Hồi Sức Hô Hấp & Đa Khoa', status: 'occupied', patientId: 'P305' },
+  { id: 'P308-G01', roomNumber: 'P.308', bed: 'G01', department: 'Phòng Lưu Hậu Phẫu Tim', status: 'occupied', patientId: 'P308' },
+  { id: 'P308-G02', roomNumber: 'P.308', bed: 'G02', department: 'Phòng Lưu Hậu Phẫu Tim', status: 'available' },
+];
+
+let wardBeds: WardBedSlot[] = [...baseWardBeds];
+
+function syncWardBeds(): WardBedSlot[] {
+  for (const bed of wardBeds) {
+    const occupant = patients.find(
+      (p) => (p.roomNumber === bed.roomNumber && p.bed === bed.bed) || p.id === bed.patientId
+    );
+    if (occupant) {
+      bed.status = 'occupied';
+      bed.patientId = occupant.id;
+    } else {
+      bed.status = 'available';
+      bed.patientId = undefined;
+    }
+  }
+
+  // If a patient has a room/bed not in wardBeds list, dynamically register it
+  for (const patient of patients) {
+    const exists = wardBeds.find((b) => b.roomNumber === patient.roomNumber && b.bed === patient.bed);
+    if (!exists) {
+      wardBeds.push({
+        id: `${patient.roomNumber.replace(/[^a-zA-Z0-9]/g, '')}-${patient.bed}`,
+        roomNumber: patient.roomNumber,
+        bed: patient.bed,
+        department: 'Khoa Hồi Sức Tích Cực',
+        status: 'occupied',
+        patientId: patient.id,
+      });
+    }
+  }
+
+  return wardBeds;
+}
+
+function calculateBedStats(): WardBedStats {
+  const currentBeds = syncWardBeds();
+  const totalBeds = currentBeds.length;
+  const occupiedBeds = currentBeds.filter((b) => b.status === 'occupied').length;
+  const availableBeds = totalBeds - occupiedBeds;
+  const occupancyRatePercent = totalBeds > 0 ? Math.round((occupiedBeds / totalBeds) * 100) : 0;
+  return {
+    totalBeds,
+    occupiedBeds,
+    availableBeds,
+    occupancyRatePercent,
+  };
+}
 
 const initialDoctors: Doctor[] = [
   {
@@ -807,9 +874,166 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', uptime: process.uptime(), time: new Date().toISOString() });
 });
 
+// Beds & Occupancy API
+app.get('/api/beds', (req, res) => {
+  const beds = syncWardBeds();
+  const stats = calculateBedStats();
+  res.json({ beds, stats });
+});
+
 // Patients API
 app.get('/api/patients', (req, res) => {
   res.json(patients);
+});
+
+app.post('/api/patients', (req, res) => {
+  const {
+    name,
+    roomNumber,
+    bed,
+    age,
+    gender,
+    diagnosis,
+    primaryDoctorId,
+    notes,
+    initialHeartRate,
+    initialSpO2,
+  } = req.body;
+
+  if (!name || !roomNumber || !bed) {
+    res.status(400).json({ error: 'Tên bệnh nhân, số phòng và số giường là bắt buộc' });
+    return;
+  }
+
+  // Check if bed is already occupied by someone else
+  const existingOccupant = patients.find(
+    (p) => p.roomNumber.trim().toLowerCase() === roomNumber.trim().toLowerCase() &&
+           p.bed.trim().toLowerCase() === bed.trim().toLowerCase()
+  );
+  if (existingOccupant) {
+    res.status(400).json({
+      error: `Giường ${bed} tại phòng ${roomNumber} hiện đang có bệnh nhân ${existingOccupant.name} sử dụng. Vui lòng chọn giường khác hoặc trả giường trước.`
+    });
+    return;
+  }
+
+  const patientId = req.body.id || `P${Math.floor(100 + Math.random() * 900)}`;
+  const newPatient: Patient = {
+    id: patientId,
+    name: name.trim(),
+    roomNumber: roomNumber.trim(),
+    bed: bed.trim(),
+    age: Number(age) || 50,
+    gender: gender || 'Nam',
+    diagnosis: diagnosis?.trim() || 'Theo dõi hồi sức tích cực',
+    primaryDoctorId: primaryDoctorId || (doctors[0]?.id ?? 'DOC01'),
+    admissionDate: new Date().toISOString(),
+    notes: notes?.trim() || '',
+    initialHeartRate: initialHeartRate ? Number(initialHeartRate) : 75,
+    initialSpO2: initialSpO2 ? Number(initialSpO2) : 98,
+  };
+
+  patients.unshift(newPatient);
+
+  // Sync beds
+  const updatedBeds = syncWardBeds();
+
+  // Generate initial vital baseline
+  const baseHr = newPatient.initialHeartRate || 75;
+  const baseSpO2 = newPatient.initialSpO2 || 98;
+  const initialVital: VitalReading = {
+    id: `VR-INIT-${Date.now()}`,
+    patientId: newPatient.id,
+    patientName: newPatient.name,
+    roomNumber: newPatient.roomNumber,
+    heartRate: baseHr,
+    spO2: baseSpO2,
+    bloodPressureSystolic: 120,
+    bloodPressureDiastolic: 80,
+    timestamp: new Date().toISOString(),
+    isAbnormal: false,
+  };
+  vitalReadings.unshift(initialVital);
+
+  // Broadcast to all connected staff terminals
+  broadcast({ type: 'PATIENTS_UPDATED', patients: [...patients] });
+  broadcast({ type: 'BEDS_UPDATED', beds: [...updatedBeds] });
+  broadcast({ type: 'NEW_VITAL', reading: initialVital });
+  broadcast({ type: 'STATS_UPDATED', stats: calculateStats() });
+
+  res.status(201).json({ success: true, patient: newPatient, bedStats: calculateBedStats() });
+});
+
+app.put('/api/patients/:id', (req, res) => {
+  const { id } = req.params;
+  const index = patients.findIndex((p) => p.id === id);
+  if (index === -1) {
+    res.status(404).json({ error: 'Không tìm thấy bệnh nhân' });
+    return;
+  }
+
+  const { roomNumber, bed } = req.body;
+  // If moving to another bed, verify destination isn't occupied by someone else
+  if (roomNumber && bed) {
+    const conflict = patients.find(
+      (p) => p.id !== id &&
+             p.roomNumber.trim().toLowerCase() === roomNumber.trim().toLowerCase() &&
+             p.bed.trim().toLowerCase() === bed.trim().toLowerCase()
+    );
+    if (conflict) {
+      res.status(400).json({
+        error: `Giường ${bed} tại phòng ${roomNumber} đã có bệnh nhân ${conflict.name}. Vui lòng chọn giường khác.`
+      });
+      return;
+    }
+  }
+
+  patients[index] = {
+    ...patients[index],
+    ...req.body,
+    id, // protect ID
+  };
+
+  const updatedBeds = syncWardBeds();
+  broadcast({ type: 'PATIENTS_UPDATED', patients: [...patients] });
+  broadcast({ type: 'BEDS_UPDATED', beds: [...updatedBeds] });
+
+  res.json({ success: true, patient: patients[index], bedStats: calculateBedStats() });
+});
+
+app.delete('/api/patients/:id', (req, res) => {
+  const { id } = req.params;
+  const patient = patients.find((p) => p.id === id);
+  if (!patient) {
+    res.status(404).json({ error: 'Không tìm thấy bệnh nhân' });
+    return;
+  }
+
+  // Remove patient
+  patients = patients.filter((p) => p.id !== id);
+
+  // Auto-resolve any pending alerts for this discharged patient
+  for (const alert of alerts) {
+    if (alert.patientId === id && alert.status === 'Pending') {
+      alert.status = 'Resolved';
+      alert.resolvedAt = new Date().toISOString();
+      alert.resolvedBy = 'Hệ Thống (Bệnh nhân xuất viện / chuyển giường)';
+      alert.resolutionNote = 'Đã hoàn tất xuất viện hoặc giải phóng giường.';
+      broadcast({ type: 'ALERT_RESOLVED', alert: { ...alert }, resolvedBy: alert.resolvedBy });
+    }
+  }
+
+  const updatedBeds = syncWardBeds();
+  broadcast({ type: 'PATIENTS_UPDATED', patients: [...patients] });
+  broadcast({ type: 'BEDS_UPDATED', beds: [...updatedBeds] });
+  broadcast({ type: 'STATS_UPDATED', stats: calculateStats() });
+
+  res.json({
+    success: true,
+    message: `Đã hoàn tất xuất viện cho bệnh nhân ${patient.name}, giải phóng giường ${patient.bed} phòng ${patient.roomNumber}.`,
+    dischargedPatient: patient,
+    bedStats: calculateBedStats(),
+  });
 });
 
 // Doctors / Staff API
@@ -1629,6 +1853,7 @@ async function startServer() {
       medicationHistory: [...medicationAdministrationLogs],
       settings: systemSettings,
       stats: calculateStats(),
+      beds: syncWardBeds(),
     };
     ws.send(JSON.stringify(initState));
 

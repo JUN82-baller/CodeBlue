@@ -14,6 +14,7 @@ import {
   Sun,
   Users,
   Mail,
+  Bed,
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
@@ -26,6 +27,9 @@ interface NavbarProps {
   onOpenGmail?: () => void;
   isConnected: boolean;
   pendingAlertsCount: number;
+  availableBedsCount?: number;
+  totalBedsCount?: number;
+  onOpenBedModal?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -36,6 +40,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenGmail,
   isConnected,
   pendingAlertsCount,
+  availableBedsCount,
+  totalBedsCount,
+  onOpenBedModal,
 }) => {
   const { language, t } = useLanguage();
   const { theme, toggleTheme } = useTheme();
@@ -296,8 +303,38 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
           </nav>
 
-          {/* Right Action: Google Sheets Sync, Quick Theme & Settings */}
+          {/* Right Action: Bed status, Google Sheets Sync, Quick Theme & Settings */}
           <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+            {totalBedsCount !== undefined && (
+              <button
+                id="btn-nav-beds-counter"
+                onClick={() => {
+                  if (onOpenBedModal) {
+                    onOpenBedModal();
+                  } else {
+                    setActiveTab('nurse');
+                  }
+                }}
+                className={`hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border shadow-xs cursor-pointer ${
+                  (availableBedsCount || 0) > 0
+                    ? isDark
+                      ? 'bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-400 border-emerald-500/30'
+                      : 'bg-emerald-50/90 hover:bg-emerald-100 text-emerald-800 border-emerald-300'
+                    : isDark
+                    ? 'bg-rose-950/40 hover:bg-rose-900/60 text-rose-400 border-rose-500/30'
+                    : 'bg-rose-50 hover:bg-rose-100 text-rose-800 border-rose-300'
+                }`}
+                title={language === 'vi' ? 'Xem buồng giường & Tiếp nhận bệnh nhân' : 'View beds & Admit patient'}
+              >
+                <Bed className="w-3.5 h-3.5" />
+                <span>
+                  {language === 'vi'
+                    ? `Trống ${availableBedsCount}/${totalBedsCount} giường`
+                    : `${availableBedsCount}/${totalBedsCount} beds free`}
+                </span>
+              </button>
+            )}
+
             {onOpenGoogleSheets && (
               <button
                 id="btn-google-sheets-sync"

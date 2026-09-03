@@ -300,6 +300,7 @@ interface DoctorPortalProps {
   selectedDoctorId?: string;
   setSelectedDoctorId?: (id: string) => void;
   onOpenGmail?: (alert?: Alert, doctor?: Doctor) => void;
+  onOpenAdmitModal?: (bedSlot?: { roomNumber: string; bed: string } | null, patient?: Patient | null) => void;
 }
 
 export const DoctorPortal: React.FC<DoctorPortalProps> = ({
@@ -317,6 +318,7 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
   selectedDoctorId,
   setSelectedDoctorId,
   onOpenGmail,
+  onOpenAdmitModal,
 }) => {
   const { t, language } = useLanguage();
   const { theme } = useTheme();
@@ -952,14 +954,27 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
 
       {/* DANH SÁCH BỆNH NHÂN ĐANG THEO DÕI TẠI KHOA (WARD PATIENT TELEMETRY) */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <h3 className={`text-base font-bold flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
             <Activity className="w-5 h-5 text-blue-500" />
             <span>{t.patientListHeader}</span>
           </h3>
-          <span className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-            {patients.length} {t.patientCount}
-          </span>
+          <div className="flex items-center gap-3">
+            <span className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+              {patients.length} {t.patientCount}
+            </span>
+            {onOpenAdmitModal && (
+              <button
+                id="btn-doctor-admit-patient"
+                onClick={() => onOpenAdmitModal()}
+                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
+                title={language === 'vi' ? 'Tiếp nhận bệnh nhân mới vào giường trống' : 'Admit new patient to an available bed'}
+              >
+                <Bed className="w-3.5 h-3.5" />
+                <span>{language === 'vi' ? '+ Tiếp Nhận Bệnh Nhân' : '+ Admit Patient'}</span>
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1083,6 +1098,18 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
                       >
                         <Sparkles className="w-3 h-3 text-amber-300" />
                         <span>Hỏi AI</span>
+                      </button>
+                    )}
+
+                    {onOpenAdmitModal && (
+                      <button
+                        id={`btn-edit-bed-patient-${patient.id}`}
+                        onClick={() => onOpenAdmitModal({ roomNumber: patient.roomNumber, bed: patient.bed }, patient)}
+                        className="px-2 py-1 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 text-[10px] font-bold transition-colors cursor-pointer flex items-center gap-1"
+                        title={language === 'vi' ? 'Xem/Chỉnh sửa thông tin buồng giường bệnh nhân' : 'View/Edit patient bed details'}
+                      >
+                        <Bed className="w-3 h-3" />
+                        <span>{language === 'vi' ? 'Hồ sơ giường' : 'Bed info'}</span>
                       </button>
                     )}
 
